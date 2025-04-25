@@ -1,0 +1,22 @@
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace GradingManagementSystem.Core.DTOs
+{
+    public class CreateCriteriaDto
+    {
+        [Required(ErrorMessage = "CriteriaName is required.")]
+        public string Name { get; set; }
+
+        [Required(ErrorMessage = "Description is required.")]
+        public string Description { get; set; }
+
+        [Required(ErrorMessage = "MaxGrade is required.")]
+        public int MaxGrade { get; set; }
+
+        [Required(ErrorMessage = "Evaluator is required.")]
+        public string Evaluator { get; set; } // "Admin" Or "Supervisor" Or "Examiner"
+
+        [Required(ErrorMessage = "GivenTo is required.")]
+        public string GivenTo { get; set; } // "Student" Or "Team"
+    }
+}

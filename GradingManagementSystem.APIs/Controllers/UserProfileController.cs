@@ -26,6 +26,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        // Updated
         [HttpGet("GetProfile")]
         [Authorize(Roles = "Student,Doctor,Admin")]
         public async Task<IActionResult> GetProfile()

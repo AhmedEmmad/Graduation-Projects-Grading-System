@@ -9,8 +9,9 @@
         public int EvaluatorId { get; set; }
         public string Evaluator { get; set; } // Supervisor, Examiner, Admin
         public double GradeValue { get; set; }
+        public string AcademicYear { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public DateTime UpdatedAt { get; set; }
+        public DateTime LastUpdatedAt { get; set; }
 
 
 

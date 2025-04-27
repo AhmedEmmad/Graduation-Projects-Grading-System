@@ -5,6 +5,7 @@ using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Core.Services.Contact;
 using GradingManagementSystem.Repository.Data.DbContexts;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -15,7 +16,7 @@ namespace GradingManagementSystem.Service
     public class AuthenticationService : IAuthenticationService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly UserManager<AppUser> _userManager;
+        private readonly UserManager<AppUser> _userManager; // Provides the Helper Methods for User Management
         private readonly IConfiguration _configuration;
         private readonly IEmailService _emailService;
         private readonly SignInManager<AppUser> _signInManager;
@@ -40,54 +41,55 @@ namespace GradingManagementSystem.Service
         }
 
         public async Task<ApiResponse> RegisterStudentAsync(StudentRegisterDto model)
-        {
-            var existAccount = await _userManager.FindByEmailAsync(model.Email);
-            if (existAccount is not null)
+        {            
+            var existingAccount = await _userManager.FindByEmailAsync(model.Email);
+            if (existingAccount != null)
                 return new ApiResponse(400, $"This email \'{model.Email}\' is already taken/registered, Please register with another email.", new { IsSuccess = false });
 
-            //var existTemporaryUser = await _unitOfWork.Repository<TemporaryUser>().FindAsync(U => U.Email == model.Email);
-            var existTemporaryUser = await _dbContext.TemporaryUsers.FirstOrDefaultAsync(U => U.Email == model.Email);
+            var existingTemporaryUser = await _dbContext.TemporaryUsers.FirstOrDefaultAsync(u => u.Email == model.Email);
 
-            if (existTemporaryUser is not null)
+            // Student registered recently but not verified an email
+            if (existingTemporaryUser != null)
             {
-                //var existOtp = await _unitOfWork.Repository<UserOtp>().FindAsync(O => O.Email == model.Email && DateTime.Now < O.ExpiryTime);
-                var existOtp = await _dbContext.UserOtps.FirstOrDefaultAsync(o => o.Email == model.Email && DateTime.Now < o.ExpiryTime);
+                var existingOtpCode = await _dbContext.UserOtps.FirstOrDefaultAsync(o => o.Email == model.Email && DateTime.Now < o.ExpiryTime);
 
-                if (existOtp is not null)
+                if (existingOtpCode != null)
                 {
-                    await _emailService.SendEmailAsync(model.Email, "Your OTP Code: ",
+                    await _emailService.SendEmailAsync(model.Email, "Welcome, Your OTP Code Verification",
                            $@"
-                           <p>Hello {model.FullName},</p>
+                           <p>Hi {model.FullName},</p>
                           <p>Here is your One-Time Password (OTP):</p>
-                          <h1 style='color: #00bfff;'>{existOtp.OtpCode}</h1>
-                          <p><strong>Note:</strong> This code is valid for the next <strong>5 minutes</strong>.</p>
+                          <h1 style='color: #00bfff;'>{existingOtpCode.OtpCode}</h1>
+                          <p><strong>Note:</strong> This code is valid until this time: <strong>{existingOtpCode.ExpiryTime}</strong>.</p>
                            ");
-                    return new ApiResponse(200, "OTP has been resent to your email.", new { IsSuccess = true });
+
+                    return new ApiResponse(200, "Your OTP Code Verification has been resent to your email. Check it now", new { IsSuccess = true });
                 }
                 else
                 {
-                    string otp = OtpGenerator.GenerateOtp();
-                    DateTime expirationTime = DateTime.Now.AddMinutes(5);
-                    var otpVerification = new UserOtp
+                    string newOtp = OtpGenerator.GenerateOtp();
+                    DateTime newExpiration = DateTime.Now.AddMinutes(5);
+                    var newOtpVerification = new UserOtp
                     {
                         Email = model.Email,
-                        OtpCode = otp,
-                        ExpiryTime = expirationTime
+                        OtpCode = newOtp,
+                        ExpiryTime = newExpiration
                     };
-                    await _dbContext.UserOtps.AddAsync(otpVerification);
+                    await _dbContext.UserOtps.AddAsync(newOtpVerification);
                     await _dbContext.SaveChangesAsync();
 
-                    await _emailService.SendEmailAsync(model.Email, "Your OTP for Registration",
-                        $"<p>Dear {model.FullName},</p>" +
+                    await _emailService.SendEmailAsync(model.Email, "Welcome, Your OTP Code Verification",
+                        $"<p>Hi {model.FullName},</p>" +
                         $"<p>Welcome! We're excited to have you join us.</p>" +
                         $"<p>Your One-Time Password (OTP) for email verification is:</p>" +
-                        $"<h2 style='color: #00bfff;'>{otp}</h2>");
+                        $"<h2 style='color: #00bfff;'>{newOtp}</h2>");
 
-                    return new ApiResponse(200, "OTP has been resent to your email.", new {IsSuccess = true});
+                    return new ApiResponse(200, "Your OTP Code Verification has been resent to your email. Check it now", new { IsSuccess = true });
                 }
             }
+            
             string profilePicturePath = "";
-            if (model.ProfilePicture is not null)
+            if (model.ProfilePicture != null)
             {
                 var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students/ProfilePictures");
                 Directory.CreateDirectory(uploadsFolder);
@@ -102,7 +104,8 @@ namespace GradingManagementSystem.Service
 
                 profilePicturePath = $"{_configuration["ApiBaseUrl"]}Students/ProfilePictures/{uniqueFileName}";
             }
-            var tempUser = new TemporaryUser
+
+            var newTemporaryUser = new TemporaryUser
             {
                 FullName = model.FullName,
                 Email = model.Email,
@@ -110,59 +113,58 @@ namespace GradingManagementSystem.Service
                 ProfilePicture = profilePicturePath,
                 Specialty = model.Specialty
             };
-            //await _unitOfWork.Repository<TemporaryUser>().AddAsync(tempUser);
-            await _dbContext.TemporaryUsers.AddAsync(tempUser);
 
-            string newOtp = OtpGenerator.GenerateOtp();
+            await _dbContext.TemporaryUsers.AddAsync(newTemporaryUser);
+
+            string newOtpCode = OtpGenerator.GenerateOtp();
             DateTime newExpirationTime = DateTime.Now.AddMinutes(5);
 
-            var newOtpVerification = new UserOtp
+            var newOtpCodeVerification = new UserOtp
             {
                 Email = model.Email,
-                OtpCode = newOtp,
+                OtpCode = newOtpCode,
                 ExpiryTime = newExpirationTime
             };
-            //await _unitOfWork.Repository<UserOtp>().AddAsync(newOtpVerification);
-            await _dbContext.UserOtps.AddAsync(newOtpVerification);
-            //await _unitOfWork.CompleteAsync();
-            await _dbContext.SaveChangesAsync();
-            await _emailService.SendEmailAsync(model.Email, "Welcome",
-                        $"<p>Hi {model.FullName},</p>" +
-                        $"<p>We’re thrilled to have you here! To complete your registration, please verify your email using the code below:</p>" +
-                        $"<h2 style='color: #00bfff;'>{newOtp}</h2>");
 
-            return new ApiResponse(200, "Registration successful, The Verification code has been sent to your email.", new { IsSuccess = true });
+            await _dbContext.UserOtps.AddAsync(newOtpCodeVerification);
+            await _dbContext.SaveChangesAsync();
+
+            await _emailService.SendEmailAsync(model.Email, $"Welcome {model.FullName}!",
+                        $"<p>Hi {model.FullName},</p>" +
+                        $"<p>We’re thrilled to have you here! To complete your registration, Please verify your email using the otp code below:</p>" +
+                        $"<h2 style='color: #00bfff;'>{newOtpCode}</h2>");
+
+            return new ApiResponse(200, $"Registration successful, The OTP Code Verification has been sent to your email with expiry time: '{newOtpCodeVerification.ExpiryTime}'. Check it now", new { IsSuccess = true });
         }
 
         public async Task<ApiResponse> RegisterDoctorAsync(DoctorRegisterDto model)
         {
-            var existDoctor = await _userManager.FindByEmailAsync(model.Email);
-            if (existDoctor is not null)
-                return new ApiResponse(400, $"This email \'{model.Email}\' is already taken/registered, Please register with another email");
+            var existingDoctor = await _userManager.FindByEmailAsync(model.Email);
+            if (existingDoctor != null)
+                return new ApiResponse(400, $"This email \'{model.Email}\' is already taken/registered, Please register with another email", new { IsSuccess = false });
 
-            var doctorAppUser = new AppUser
+            var newDoctorAppUser = new AppUser
             {
                 FullName = model.FullName,
                 Email = model.Email,
                 UserName = model.Email.Split('@')[0],
             };
 
-            var createDoctorResult = await _userManager.CreateAsync(doctorAppUser, model.Password);
+            var createDoctorResult = await _userManager.CreateAsync(newDoctorAppUser, model.Password);
             if (!createDoctorResult.Succeeded)
-                return new ApiResponse(400, "User creation failed.");
+                return new ApiResponse(400, "User creation failed.", new { IsSuccess = false });
 
-            var doctorId = doctorAppUser.Id;
             var doctor = new Doctor
             {
-                AppUserId = doctorId,
-                FullName = doctorAppUser.FullName,
-                Email = doctorAppUser.Email
+                AppUserId = newDoctorAppUser.Id,
+                FullName = newDoctorAppUser.FullName,
+                Email = newDoctorAppUser.Email
             };
 
             await _unitOfWork.Repository<Doctor>().AddAsync(doctor);
-            await _userManager.AddToRoleAsync(doctorAppUser, "Doctor");
+            await _userManager.AddToRoleAsync(newDoctorAppUser, "Doctor");
             await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, "Doctor registered successfully.");
+            return new ApiResponse(200, $"Doctor registered successfully with ID: '{doctor.Id}'.", new { IsSuccess = true });
         }
 
         public async Task<ApiResponse> LoginAsync(LoginDto model)
@@ -229,48 +231,52 @@ namespace GradingManagementSystem.Service
 
         public async Task<ApiResponse> VerifyEmailByOTPAsync(string otpCode)
         {
-            var otpRecord = await _unitOfWork.Repository<UserOtp>().FindAsync(O => O.OtpCode == otpCode);
-            if (otpRecord == null)
-                return new ApiResponse(400, "Invalid OTP.", new { IsSuccess = false });
+            if(string.IsNullOrEmpty(otpCode))
+                return new ApiResponse(400, "Invalid input OTP Code.", new { IsSuccess = false });
 
-            if (otpRecord.ExpiryTime < DateTime.Now)
-                return new ApiResponse(400, "OTP has expired.", new { IsSuccess = false });
+            var existingOtpCode = await _unitOfWork.Repository<UserOtp>().FindAsync(o => o.OtpCode == otpCode);
+            if (existingOtpCode == null)
+                return new ApiResponse(404, "OTP Code not found.", new { IsSuccess = false });
 
-            var temporaryUser = await _unitOfWork.Repository<TemporaryUser>().FindAsync(U => U.Email == otpRecord.Email);
-            if (temporaryUser == null)
-                return new ApiResponse(400, "Incorrect Email.", new { IsSuccess = false });
+            if (existingOtpCode.ExpiryTime < DateTime.Now)
+                return new ApiResponse(400, "OTP Code has expired.", new { IsSuccess = false });
 
-            _unitOfWork.Repository<UserOtp>().Delete(otpRecord);
+            var existingTemporaryUser = await _unitOfWork.Repository<TemporaryUser>().FindAsync(u => u.Email == existingOtpCode.Email);
+            if (existingTemporaryUser == null)
+                return new ApiResponse(404, "Account not registered recently.", new { IsSuccess = false });
+
+            _unitOfWork.Repository<UserOtp>().Delete(existingOtpCode);
             await _unitOfWork.CompleteAsync();
 
-            var studentAppUser = new AppUser
+            var newStudentAppUser = new AppUser
             {
-                FullName = temporaryUser.FullName,
-                Email = temporaryUser.Email,
-                UserName = temporaryUser.Email.Split('@')[0],
-                ProfilePicture = temporaryUser.ProfilePicture,
+                FullName = existingTemporaryUser.FullName,
+                Email = existingTemporaryUser.Email,
+                UserName = existingTemporaryUser.Email.Split('@')[0],
+                ProfilePicture = existingTemporaryUser.ProfilePicture,
                 EmailConfirmed = true,
-                Specialty = temporaryUser?.Specialty?.ToUpper()
+                Specialty = existingTemporaryUser?.Specialty?.ToUpper()
             };
 
-            var createStudentResult = await _userManager.CreateAsync(studentAppUser, temporaryUser.PasswordHash);
-            if (!createStudentResult.Succeeded)
+            var StudentCreatedResult = await _userManager.CreateAsync(newStudentAppUser, existingTemporaryUser.PasswordHash);
+            if (!StudentCreatedResult.Succeeded)
                 return new ApiResponse(400, "User Creation Failed.", new { IsSuccess = false });
 
-            await _userManager.AddToRoleAsync(studentAppUser, "Student");
-            var student = new Student
+            await _userManager.AddToRoleAsync(newStudentAppUser, "Student");
+            var newStudent = new Student
             {
-                FullName = studentAppUser.FullName,
-                Email = studentAppUser.Email,
-                Specialty = studentAppUser.Specialty ?? string.Empty,
-                AppUserId = studentAppUser.Id
+                FullName = newStudentAppUser.FullName,
+                Email = newStudentAppUser.Email,
+                Specialty = newStudentAppUser.Specialty ?? string.Empty,
+                AppUserId = newStudentAppUser.Id,
+
             };
-            await _unitOfWork.Repository<Student>().AddAsync(student);
+            await _unitOfWork.Repository<Student>().AddAsync(newStudent);
             await _unitOfWork.CompleteAsync();
 
-            _unitOfWork.Repository<TemporaryUser>().Delete(temporaryUser);
+            _unitOfWork.Repository<TemporaryUser>().Delete(existingTemporaryUser);
             await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, "Email verified successfully and user created.", new { IsSuccess = true });
+            return new ApiResponse(200, $"Email verified successfully and user created  with ID: '{newStudent.Id}'.", new { IsSuccess = true });
         }
     }
 }

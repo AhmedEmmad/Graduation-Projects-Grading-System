@@ -16,7 +16,7 @@ namespace GradingManagementSystem.Repository
             _dbContext = dbContext;
         }
 
-        public async Task<AdminProfileDto> GetAdminProfileAsync(string userId)
+        public async Task<AdminProfileDto?> GetAdminProfileAsync(string userId)
         {
             var adminUser = await _dbContext.Users.Include(u => u.Admin).FirstOrDefaultAsync(u => u.Id ==  userId);
             if (adminUser == null)
@@ -28,21 +28,25 @@ namespace GradingManagementSystem.Repository
                 FullName = adminUser.FullName,
                 Email = adminUser.Email,
                 EnrollmentDate = adminUser.Admin.EnrollmentDate,
-                Role = "Admin"
+                Role = "Admin",
+                ProfilePicture = adminUser.ProfilePicture,
             };
         }
 
-        public async Task<DoctorProfileDto> GetDoctorProfileAsync(string userId)
+        public async Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId)
         {
             var doctorUser = await _dbContext.Users.Include(u => u.Doctor).FirstOrDefaultAsync(u => u.Id == userId);
+            if (doctorUser == null)
+                return null;
 
             return new DoctorProfileDto
             {
                 Id = doctorUser.Doctor.Id,
                 FullName = doctorUser.FullName,
                 Email = doctorUser.Email,
-                EnrollmentDate = doctorUser.Doctor.EnrollmentDate,
                 Role = "Doctor",
+                EnrollmentDate = doctorUser.Doctor.EnrollmentDate,
+                ProfilePicture = doctorUser.ProfilePicture,
                 Teams = doctorUser.Doctor.Teams.Select(t => new TeammDto
                 {
                     TeamId = t.Id,
@@ -52,26 +56,29 @@ namespace GradingManagementSystem.Repository
             };
         }
 
-        public async Task<StudentProfileDto> GetStudentProfileAsync(string userId)
+        public async Task<StudentProfileDto?> GetStudentProfileAsync(string userId)
         {
             var studentUser = await _dbContext.Users.Include(u => u.Student).FirstOrDefaultAsync(u => u.Id == userId);
+            if (studentUser == null)
+                return null;
 
             return new StudentProfileDto
             {
                 Id = studentUser.Student.Id,
                 FullName = studentUser.FullName,
                 Email = studentUser.Email,
-                Specialty = studentUser.Specialty,
-                InTeam = studentUser.Student.InTeam,
+                Role = "Student",
+                ProfilePicture = studentUser.ProfilePicture,
                 EnrollmentDate = studentUser.Student.EnrollmentDate,
                 TeamId = studentUser.Student.TeamId,
+                HasProject = studentUser.Student.Team.HasProject,
                 LeaderOfTeamId = studentUser.Student.LeaderOfTeamId,
-                ProfilePicture = studentUser.ProfilePicture,
-                Role = "Student"
+                InTeam = studentUser.Student.InTeam,
+                Specialty = studentUser.Specialty,
             };
         }
 
-        public async Task<AppUser> GetAppUserAsync(string userId)
+        public async Task<AppUser?> GetAppUserAsync(string userId)
         {
             var appUser = await _dbContext.Users
                 .Include(u => u.Doctor)

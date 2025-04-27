@@ -1,11 +1,6 @@
-﻿using GradingManagementSystem.Core;
-using GradingManagementSystem.Core.CustomResponses;
+﻿using GradingManagementSystem.Core.CustomResponses;
 using GradingManagementSystem.Core.DTOs;
-using GradingManagementSystem.Core.Entities;
-using GradingManagementSystem.Core.Entities.Identity;
-using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using IAuthenticationService = GradingManagementSystem.Core.Services.Contact.IAuthenticationService;
 
@@ -17,19 +12,10 @@ namespace GradingManagementSystem.APIs.Controllers
     public class AuthenticationController : ControllerBase
     {
         private readonly IAuthenticationService _authService;
-        private readonly GradingManagementSystemDbContext _dbContext;
-        private readonly UserManager<AppUser> _userManager; // Provides the Helper Methods for User Management
-        private readonly IUnitOfWork _unitOfWork;
 
-        public AuthenticationController(IAuthenticationService authService,
-                                        UserManager<AppUser> userManager,
-                                        GradingManagementSystemDbContext dbContext,
-                                        IUnitOfWork unitOfWork)
+        public AuthenticationController(IAuthenticationService authService)
         {
             _authService = authService;
-            _userManager = userManager;
-            _dbContext = dbContext;
-            _unitOfWork = unitOfWork;
         }
 
         // Student Registration/Creation Flow/Logic
@@ -37,14 +23,16 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> StudentRegister([FromForm] StudentRegisterDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+        
+            var result = await _authService.RegisterStudentAsync(model);
 
-            var returnedRespone = await _authService.RegisterStudentAsync(model);
+            if (result.StatusCode == 400)
+                return BadRequest(result);
+            if(result.StatusCode == 404)
+                return NotFound(result);
 
-            if (returnedRespone.StatusCode == 400)
-                return BadRequest(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data });
-
-            return Ok(returnedRespone);
+            return Ok(result);
         }
 
         // Doctor Registration Flow
@@ -53,14 +41,16 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> DoctorRegister([FromBody] DoctorRegisterDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            ApiResponse returnedRespone = await _authService.RegisterDoctorAsync(model);
+            var result = await _authService.RegisterDoctorAsync(model);
 
-            if (returnedRespone.StatusCode == 400)
-                return BadRequest(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data  });
+            if (result.StatusCode == 400)
+                return BadRequest(result);
+            if(result.StatusCode == 404)
+                return NotFound(result);
 
-            return Ok(returnedRespone);
+            return Ok(result);
         }
 
         // User Login Flow
@@ -68,17 +58,17 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> Login([FromBody] LoginDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            ApiResponse returnedRespone = await _authService.LoginAsync(model);
+            var result = await _authService.LoginAsync(model);
 
-            if (returnedRespone.StatusCode == 400)
-                return BadRequest(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data });
+            if (result.StatusCode == 400)
+                return BadRequest(result);
 
-            if(returnedRespone.StatusCode == 401)
-                return Unauthorized(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data });
+            if(result.StatusCode == 401)
+                return Unauthorized(result);
 
-            return Ok(returnedRespone);
+            return Ok(result);
         }
 
         // User ForgetPassword Flow
@@ -86,14 +76,14 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            ApiResponse returnedRespone = await _authService.ForgetPasswordAsync(model);
+            var result = await _authService.ForgetPasswordAsync(model);
 
-            if (returnedRespone.StatusCode == 400)
-                return BadRequest(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data });
+            if (result.StatusCode == 400)
+                return BadRequest(result);
 
-            return Ok(returnedRespone);
+            return Ok(result);
         }
 
         // User ResetPassword Flow
@@ -101,23 +91,29 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            ApiResponse returnedRespone = await _authService.ResetPasswordAsync(model);
+            var result = await _authService.ResetPasswordAsync(model);
 
-            if (returnedRespone.StatusCode == 400)
-                return BadRequest(new { statusCode = returnedRespone.StatusCode, message = returnedRespone.Message, data = returnedRespone.Data });
+            if (result.StatusCode == 400)
+                return BadRequest(result);
 
-            return Ok(returnedRespone);
+            return Ok(result);
         }
 
+        // Student Email Verification Flow
         [HttpPost("EmailVerificationByOtp/{otpCode}")]
         public async Task<IActionResult> VerifyEmailByOTP(string otpCode)
         {
+            if (string.IsNullOrEmpty(otpCode))
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+
             var result = await _authService.VerifyEmailByOTPAsync(otpCode);
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
+            if(result.StatusCode == 404)
+                return NotFound(result);
 
             return Ok(result);
         }

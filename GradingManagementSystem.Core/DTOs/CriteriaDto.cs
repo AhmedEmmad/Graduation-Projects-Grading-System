@@ -8,5 +8,8 @@
         public int MaxGrade { get; set; }
         public string Evaluator { get; set; } // "Admin" Or "Supervisor" Or "Examiner"
         public string GivenTo { get; set; } // "Student" Or "Team"
+        public string Program { get; set; }
+        public string Year { get; set; }
+        public string Term { get; set; }
     }
 }

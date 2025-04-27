@@ -28,19 +28,19 @@ namespace GradingManagementSystem.Service
 
         public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole)
         {
-            object? result = null;
+            object? userProfile = null;
             if (userRole == "Admin")
-                result = await _userProfileRepository.GetAdminProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetAdminProfileAsync(userId);
             else if (userRole == "Doctor")
-                result = await _userProfileRepository.GetDoctorProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetDoctorProfileAsync(userId);
             else if (userRole == "Student")
-                result = await _userProfileRepository.GetStudentProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetStudentProfileAsync(userId);
             else
                 return new ApiResponse(400, "Invalid user role.", new { IsSuccess = false });
 
-            if (result == null)
+            if (userProfile == null)
                 return new ApiResponse(404, "User profile not found.", new { IsSuccess = false });
-            return new ApiResponse(200, "User profile retrieved successfully.", new { IsSuccess = true, result });
+            return new ApiResponse(200, "User profile retrieved successfully.", userProfile);
         }
 
         public async Task<ApiResponse> ChangeUsernameAsync(string newUsername, string userId, string userRole)

@@ -8,7 +8,6 @@ namespace GradingManagementSystem.Core.DTOs
         public string NewPassword { get; set; }
 
         [Required(ErrorMessage = "ConfirmPassword is required.")]
-        //[Compare("NewPassword and ConfirmPassword do not match.")]
         public string ConfirmPassword { get; set; }
 
         [Required(ErrorMessage = "Email is required.")]

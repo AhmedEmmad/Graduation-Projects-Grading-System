@@ -15,6 +15,5 @@ namespace GradingManagementSystem.Core.DTOs
         [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,50}$",
             ErrorMessage = "Password must contain at least 1 uppercase, 1 lowercase, 1 digit, and 1 special character and At Least 8 Characters.")]
         public string Password { get; set; }
-        
     }
 }

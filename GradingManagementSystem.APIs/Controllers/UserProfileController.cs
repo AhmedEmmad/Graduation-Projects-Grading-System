@@ -4,10 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using GradingManagementSystem.Core.Services.Contact;
-using GradingManagementSystem.Core.Entities.Identity;
-using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using GradingManagementSystem.Repository.Data.DbContexts;
 
 
 namespace GradingManagementSystem.APIs.Controllers
@@ -19,66 +17,34 @@ namespace GradingManagementSystem.APIs.Controllers
     {
         private readonly IUserProfileService _userProfileService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly GradingManagementSystemDbContext _dbContext;
 
-        public UserProfileController(IUserProfileService userProfileService, IUnitOfWork unitOfWork)
+        public UserProfileController(IUserProfileService userProfileService, IUnitOfWork unitOfWork, GradingManagementSystemDbContext dbContext)
         {
             _userProfileService = userProfileService;
             _unitOfWork = unitOfWork;
+            _dbContext = dbContext;
         }
 
-        // Updated
         [HttpGet("GetProfile")]
-        [Authorize(Roles = "Student,Doctor,Admin")]
+        [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> GetProfile()
         {
             var userId = User.FindFirst("UserId")?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new ApiResponse(401, "Unauthorized user."));
-            var user = await _unitOfWork.Repository<AppUser>().FindAsync(u => u.Id == userId);
+                return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
+            if (string.IsNullOrEmpty(userRole))
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
+            var profileResponse = await _userProfileService.GetUserProfileAsync(userId, userRole);
 
-            if (user == null)
-                return NotFound(new ApiResponse(404, "User not found."));
+            if (profileResponse.StatusCode == 404)
+                return NotFound(profileResponse);
+            if (profileResponse.StatusCode == 400)
+                return BadRequest(profileResponse);
 
-            var userProfile = new UserProfileDto
-            {
-                Email = user.Email,
-                ProfilePicture = user.ProfilePicture
-            };
-
-            var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.AppUserId == userId);
-            if (doctor != null)
-            {
-                userProfile.Role = "Doctor";
-                userProfile.FullName = doctor.FullName;
-                userProfile.Id = doctor.Id;
-
-                return Ok(new ApiResponse(200, "Doctor Profile Retrieved Successfully.", userProfile ));
-            }
-
-            var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == userId);
-            if (student != null)
-            {
-                userProfile.Role = "Student";
-                userProfile.FullName = student.FullName;
-                userProfile.Id = student.Id;
-                userProfile.TeamId = student.TeamId;
-                userProfile.LeaderOfTeamId = student.LeaderOfTeamId;
-                userProfile.InTeam = student.InTeam;
-
-                return Ok(new ApiResponse(200, "Student Profile Retrieved Successfully.",userProfile ));
-            }
-
-            var admin = await _unitOfWork.Repository<Admin>().FindAsync(a => a.AppUserId == userId);
-            if (admin != null)
-            {
-                userProfile.Role = "Admin";
-                userProfile.FullName = admin.FullName;
-                userProfile.Id = admin.Id;
-                return Ok(new ApiResponse(200, "Admin Profile Retrieved Successfully.", userProfile ) );
-            }
-
-            return NotFound(new ApiResponse(404, "User role not found."));
+            return Ok(profileResponse);
         }
 
         [HttpPut("ChangeUsername/{newUsername}")]

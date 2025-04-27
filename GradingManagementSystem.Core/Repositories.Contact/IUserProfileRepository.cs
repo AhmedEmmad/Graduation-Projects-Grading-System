@@ -5,9 +5,9 @@ namespace GradingManagementSystem.Core.Repositories.Contact
 {
     public interface IUserProfileRepository : IGenericRepository<AppUser>
     {
-        Task<AdminProfileDto> GetAdminProfileAsync(string userId); 
-        Task<DoctorProfileDto> GetDoctorProfileAsync(string userId); 
-        Task<StudentProfileDto> GetStudentProfileAsync(string userId);
-        Task<AppUser> GetAppUserAsync(string userId);
+        Task<AdminProfileDto?> GetAdminProfileAsync(string userId); 
+        Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId); 
+        Task<StudentProfileDto?> GetStudentProfileAsync(string userId);
+        Task<AppUser?> GetAppUserAsync(string userId);
     }
 }

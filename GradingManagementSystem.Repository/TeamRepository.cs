@@ -17,17 +17,19 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctor(int doctorId)
         {
-            var teams = await _dbContext.Teams.Include(T => T.Students).Where(T => T.SupervisorId == doctorId).ToListAsync();
-            var students = await _dbContext.Students.Include(S => S.AppUser).ToListAsync();
+            var teams = await _dbContext.Teams.Include(t => t.Students)
+                                                .ThenInclude(s => s.AppUser)
+                                              .Where(t => t.SupervisorId == doctorId).ToListAsync();
 
-            var result = teams.Select(T => new TeamWithMembersDto
+            var result = teams.Select(t => new TeamWithMembersDto
             {
-                Id = T.Id,
-                Name = T.Name,
-                HasProject = T.HasProject,
-                LeaderId = T.LeaderId,
-                SupervisorId = T.SupervisorId,
-                Members = T.Students.Select(s => new TeamMemberDto
+                Id = t.Id,
+                Name = t.Name,
+                HasProject = t.HasProject,
+                LeaderId = t.LeaderId,
+                SupervisorId = t.SupervisorId,
+                Specialty = t.Specialty,
+                Members = t.Students.Select(s => new TeamMemberDto
                 {
                     Id = s.Id,
                     FullName = s.FullName,

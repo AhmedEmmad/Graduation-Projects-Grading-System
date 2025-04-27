@@ -22,13 +22,18 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateCriteria([FromBody] CreateCriteriaDto model)
         {
-            if (model == null)
+            if (model is null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>()
-                .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator);
+                                                    .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator && c.Specialty == model.Specialty);
             if (existingCriteria != null)
-                return BadRequest(new ApiResponse(400, "Criteria with the same name and evaluator already exists.", new { IsSuccess = false }));
+                return BadRequest(new ApiResponse(400, $"Criteria with the same name and evaluator already exists for this program: '{model.Specialty}'.", new { IsSuccess = false }));
+
+            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                       .FindAsync(a => a.Year == model.Year && a.Status == model.Term);
+            if (academicAppointment == null)
+                return BadRequest(new ApiResponse(400, "You can't create a criteria in this time.", new { IsSuccess = false }));
 
             var newCriteria = new Criteria
             {
@@ -37,15 +42,18 @@ namespace GradingManagementSystem.APIs.Controllers
                 MaxGrade = model.MaxGrade,
                 Evaluator = model.Evaluator,
                 GivenTo = model.GivenTo,
+                Specialty = model.Specialty,
+                Year = model.Year,
+                Term = model.Term,
+                AcademicAppointmentId = academicAppointment.Id,
             };
 
             await _unitOfWork.Repository<Criteria>().AddAsync(newCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria created successfully with ID: '{newCriteria.Id}'.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Criteria created successfully with ID: '{newCriteria.Id}' for the Program: '{newCriteria.Specialty}'.", new { IsSuccess = true }));
         }
         
-
         [HttpGet("All")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllCriterias()
@@ -61,17 +69,22 @@ namespace GradingManagementSystem.APIs.Controllers
                 Description = c.Description,
                 MaxGrade = c.MaxGrade,
                 Evaluator = c.Evaluator,
-                GivenTo = c.GivenTo
+                GivenTo = c.GivenTo,
+                Year = c.Year,
+                Program = c.Specialty,
+                Term = c.Term,
             }).ToList();
             return Ok(new ApiResponse(200, "Criterias retrieved successfully.", new { IsSuccess = true , criteriaList }));
         }
         
-
         [HttpGet("{criteriaId}")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> GetCriteriaById(int criteriaId)
         {
-            var existingCriteria = await _unitOfWork.Repository<Criteria>().GetByIdAsync(criteriaId);
+            if(criteriaId <= 0)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+
+            var existingCriteria = await _unitOfWork.Repository<Criteria>().FindAsync(c => c.Id == criteriaId);
             if (existingCriteria == null)
                 return NotFound(new ApiResponse(404, "Criteria not found.", new { IsSuccess = false }));
 
@@ -80,12 +93,22 @@ namespace GradingManagementSystem.APIs.Controllers
                 Id = existingCriteria.Id,
                 Name = existingCriteria.Name,
                 Description = existingCriteria.Description,
+                MaxGrade = existingCriteria.MaxGrade,
                 Evaluator = existingCriteria.Evaluator,
                 GivenTo = existingCriteria.GivenTo,
+                Year = existingCriteria.Year,
+                Program = existingCriteria.Specialty,
+                Term = existingCriteria.Term,
             };
             return Ok(new ApiResponse(200, "Criteria retrieved successfully.", new { IsSuccess = true , criteria }));
         }
 
+        //[HttpGet("AllCriteriasForGrading")]
+        //[Authorize(Roles = "Admin, Doctor")]
+        //public async Task<IActionResult> GetAllCriteriasForGradingByRole()
+        //{
+
+        //}
 
         [HttpPut("UpdateCriteria/{criteriaId}")]
         [Authorize(Roles = "Admin")]
@@ -106,7 +129,6 @@ namespace GradingManagementSystem.APIs.Controllers
 
             return Ok(new ApiResponse(200, "Criteria updated successfully.", new { IsSuccess = true }));
         }
-
 
         [HttpDelete("DeleteCriteria/{criteriaId}")]
         [Authorize(Roles = "Admin")]

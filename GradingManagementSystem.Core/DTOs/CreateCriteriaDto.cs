@@ -18,5 +18,14 @@ namespace GradingManagementSystem.Core.DTOs
 
         [Required(ErrorMessage = "GivenTo is required.")]
         public string GivenTo { get; set; } // "Student" Or "Team"
+
+        [Required(ErrorMessage = "Specialty is required.")]
+        public string Specialty { get; set; }
+
+        [Required(ErrorMessage = "Year is required.")]
+        public string Year { get; set; } // Format: "2023-2024"
+
+        [Required(ErrorMessage = "Term is required.")]
+        public string Term { get; set; }
     }
 }

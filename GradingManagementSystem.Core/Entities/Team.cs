@@ -9,8 +9,6 @@
         public int LeaderId { get; set; } // Foreign Key Of Id In Student Table
         public int? SupervisorId { get; set; } = null; // Foreign Key Of Id In Doctor Table
 
-        public FinalScore FinalScore { get; set; }
-
 
         #region Navigation Properties
         public ICollection<TeamProjectIdea> TeamProjectIdeas { get; set; } = new HashSet<TeamProjectIdea>();
@@ -20,10 +18,10 @@
         public ICollection<TeamRequestDoctorProjectIdea> TeamsRequestDoctorProjectIdeas { get; set; } = new HashSet<TeamRequestDoctorProjectIdea>();
         public ICollection<TaskItem> Tasks { get; set; } = new HashSet<TaskItem>();
         public ICollection<TaskMember> TaskMembers { get; set; } = new HashSet<TaskMember>();
-        public ICollection<Committee> Committees { get; set; } = new HashSet<Committee>();
         public ICollection<Schedule> Schedules { get; set; }
-        public ICollection<CommitteeAssignment> CommitteeAssignments { get; set; } = new HashSet<CommitteeAssignment>();
         public FinalProjectIdea FinalProjectIdea { get; set; }
+        public ICollection<Criteria> Criterias { get; set; } = new HashSet<Criteria>();
+        public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         #endregion
     }
 }

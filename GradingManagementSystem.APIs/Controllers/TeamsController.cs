@@ -25,6 +25,26 @@ namespace GradingManagementSystem.APIs.Controllers
             _teamRepository = teamRepository;
         }
 
+        [HttpGet("AllTeamsWithProjects")]
+        [Authorize(Roles = "Admin, Student, Doctor")]
+        public async Task<IActionResult> GetAllTeams()
+        {
+            var teams = await _dbContext.Teams.Where(t => t.HasProject == true).ToListAsync();
+            if (teams == null || !teams.Any())
+                return NotFound(new ApiResponse(404, "No teams found.", new { IsSuccess = false }));
+            var result = teams.Select(t => new TeamForSettingScheduleDto
+            {
+                Id = t.Id,
+                Name = t.Name,
+                HasProject = t.HasProject,
+                LeaderId = t.LeaderId,
+                LeaderName = t.Leader.FullName,
+                SupervisorId = t.SupervisorId,
+                SupervisorName = t.Supervisor.FullName,
+            }).ToList();
+            return Ok(new ApiResponse(200, "Teams with projects have been successfully retrieved.", new { IsSuccess = true, Teams = result }));
+        }
+
         // Finished / Tested
         [HttpGet("TeamWithMembers/{teamId}")]
         [Authorize(Roles = "Student, Doctor")]
@@ -63,10 +83,15 @@ namespace GradingManagementSystem.APIs.Controllers
         }
 
         // Finished / Tested
-        [HttpPost("CreateTeam/{teamname}")]
+        [HttpPost("CreateTeam")]
         [Authorize(Roles = "Student")]
-        public async Task<IActionResult> CreateTeam(string teamname)
+        public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto model)
         {
+            if (model is null)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+            if (string.IsNullOrWhiteSpace(model.TeamName))
+                return BadRequest(new ApiResponse(400, "Team name is required.", new { IsSuccess = false }));
+
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
                 return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
@@ -81,7 +106,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (student.LeaderOfTeamId != null && student.TeamId != null)
                 return BadRequest(new ApiResponse(400, "Student is already a leader of a team or in a team.", new { IsSuccess = false }));
 
-            var teamExists = await _unitOfWork.Repository<Team>().FindAsync(t => t.Name == teamname);
+            var teamExists = await _unitOfWork.Repository<Team>().FindAsync(t => t.Name == model.TeamName);
             if (teamExists != null)
                 return BadRequest(new ApiResponse(400, "Team name already exists.", new { IsSuccess = false }));
 
@@ -90,7 +115,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var teamCreated = new Team
             {
-                Name = teamname,
+                Name = model.TeamName,
                 LeaderId = student.Id,
             };
 

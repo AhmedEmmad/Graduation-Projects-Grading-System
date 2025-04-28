@@ -1,16 +1,26 @@
-﻿namespace GradingManagementSystem.Core.Entities
+﻿using GradingManagementSystem.Core.Entities.Identity;
+
+namespace GradingManagementSystem.Core.Entities
 {
     public class Evaluation : BaseEntity
     {
-        public int CriteriaId { get; set; } // Foreign Key Of Id In Criteria Table
-        public int ExaminerId { get; set; } // Foreign Key Of Id In Examiner Table
-        public int Score { get; set; }
+        public int? ScheduleId { get; set; }
+        public int CriteriaId { get; set; }
+        public int EvaluatorId { get; set; } // DoctorId or AdminId
+        public string EvaluatorRole { get; set; } // "Admin", "Supervisor", or "Examiner"
+        public int? StudentId { get; set; }
+        public int? TeamId { get; set; }
+        public double Grade { get; set; }
         public DateTime EvaluationDate { get; set; } = DateTime.Now;
+        public DateTime? LastUpdatedAt { get; set; } = null;
 
 
-        #region Navigation Properties
+        #region Navigation properties
         public Criteria Criteria { get; set; }
-        public Examiner Examiner { get; set; }
+        public Schedule Schedule { get; set; }
+        public AppUser EvaluatorUser { get; set; } // AppUser to handle both doctors and admins
+        public Student Student { get; set; }
+        public Team Team { get; set; }
         #endregion
     }
 }

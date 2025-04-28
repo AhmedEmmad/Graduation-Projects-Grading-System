@@ -7,6 +7,9 @@ using GradingManagementSystem.Core;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using System;
+using Microsoft.EntityFrameworkCore;
+using GradingManagementSystem.Repository.Data.DbContexts;
 
 namespace GradingManagementSystem.Service
 {
@@ -15,26 +18,42 @@ namespace GradingManagementSystem.Service
         private readonly IUserProfileRepository _userProfileRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
+        private readonly GradingManagementSystemDbContext _dbContext;
 
         public UserProfileService(IUserProfileRepository userProfileRepository,
                                   IUnitOfWork unitOfWork,
-                                  IConfiguration configuration)
+                                  IConfiguration configuration,
+                                  GradingManagementSystemDbContext dbContext)
         
         {
             _userProfileRepository = userProfileRepository;
             _unitOfWork = unitOfWork;
             _configuration = configuration;
+            _dbContext = dbContext;
         }
 
-        public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole)
+        public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole, string timezoneId)
         {
+            var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            if (timezone == null)
+                return new ApiResponse(400, "Timezone is invalid.", new { IsSuccess = false });
+            var currentTime = TimeZoneInfo.ConvertTime(DateTime.UtcNow, timezone);
+
+            var activeAppointments = await _dbContext.AcademicAppointments
+            .Where(a => a.Status == "Active")
+            .ToListAsync();
+
+            var currentAppointment = activeAppointments.FirstOrDefault(a =>
+            (currentTime >= a.FirstTermStart && currentTime <= a.FirstTermEnd) ||
+            (currentTime >= a.SecondTermStart && currentTime <= a.SecondTermEnd));
+
             object? userProfile = null;
             if (userRole == "Admin")
-                userProfile = await _userProfileRepository.GetAdminProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetAdminProfileAsync(userId, currentAppointment);
             else if (userRole == "Doctor")
-                userProfile = await _userProfileRepository.GetDoctorProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetDoctorProfileAsync(userId, currentAppointment);
             else if (userRole == "Student")
-                userProfile = await _userProfileRepository.GetStudentProfileAsync(userId);
+                userProfile = await _userProfileRepository.GetStudentProfileAsync(userId, currentAppointment);
             else
                 return new ApiResponse(400, "Invalid user role.", new { IsSuccess = false });
 

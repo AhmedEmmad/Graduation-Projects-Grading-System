@@ -56,7 +56,7 @@ namespace GradingManagementSystem.Service
             var teamTasks = await _taskRepository.GetTeamTasksByTeamIdAsync(teamId);
 
             if (teamTasks == null || !teamTasks.Any())
-                return new ApiResponse(404, $"Tasks not found for this team id: '{teamId}'.", new { IsSuccess = false });
+                return new ApiResponse(404, $"Tasks not found for this team.", new { IsSuccess = false });
 
             var taskMembers = await _taskRepository.GetTaskMembersByTeamAsync(teamId);
 

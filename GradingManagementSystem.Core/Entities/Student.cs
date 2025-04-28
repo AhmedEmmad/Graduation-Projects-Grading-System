@@ -22,8 +22,7 @@ namespace GradingManagementSystem.Core.Entities
         public Team LeaderOfTeam { get; set; }
         public ICollection<TeamRequestDoctorProjectIdea> TeamsRequestDoctorProjectIdeas { get; set; }
         public ICollection<TaskMember> TaskMembers { get; set; } = new HashSet<TaskMember>();
-        public ICollection<SupervisorGrading> SupervisorGradings { get; set; } = new HashSet<SupervisorGrading>();
-        //public ICollection<CommitteeGrading> CommitteeGradings { get; set; } = new HashSet<CommitteeGrading>();
+        public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         #endregion
     }
 }

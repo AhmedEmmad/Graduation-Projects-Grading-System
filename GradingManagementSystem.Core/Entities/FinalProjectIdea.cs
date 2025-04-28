@@ -16,7 +16,7 @@ namespace GradingManagementSystem.Core.Entities
         public int? SupervisorId { get; set; }
         public int? TeamId { get; set; }
         
-        public string PostedBy { get; set; }
+        public string? PostedBy { get; set; }
 
 
         #region navigation Properties

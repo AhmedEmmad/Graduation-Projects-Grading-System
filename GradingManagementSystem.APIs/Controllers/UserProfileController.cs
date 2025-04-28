@@ -7,10 +7,8 @@ using GradingManagementSystem.Core.Services.Contact;
 using GradingManagementSystem.Core;
 using GradingManagementSystem.Repository.Data.DbContexts;
 
-
 namespace GradingManagementSystem.APIs.Controllers
-{
-    
+{    
     [ApiController]
     [Route("api/[controller]")]
     public class UserProfileController : ControllerBase
@@ -30,6 +28,11 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> GetProfile()
         {
+            var timezoneId = Request.Headers["X-User-Timezone"].FirstOrDefault();
+            if (string.IsNullOrEmpty(timezoneId))
+                return BadRequest(new ApiResponse(400, "Timezone is invalid.", new { IsSuccess = false }));
+
+           
             var userId = User.FindFirst("UserId")?.Value;
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -37,7 +40,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (string.IsNullOrEmpty(userRole))
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var profileResponse = await _userProfileService.GetUserProfileAsync(userId, userRole);
+            var profileResponse = await _userProfileService.GetUserProfileAsync(userId, userRole, timezoneId);
 
             if (profileResponse.StatusCode == 404)
                 return NotFound(profileResponse);
@@ -71,25 +74,25 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(response);
         }
 
-        [HttpPut("ChangeEmail/{newEmail}")]
-        [Authorize(Roles = "Student, Doctor, Admin")]
-        public async Task<IActionResult> ChangeEmail(string newEmail)
-        {
-            if (string.IsNullOrEmpty(newEmail))
-                return BadRequest(new ApiResponse(400, "New email is invalid.", new { IsSuccess = false }));
-            var userId = User.FindFirst("UserId")?.Value;
-            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
-            if (string.IsNullOrEmpty(userRole))
-                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
-            var response = await _userProfileService.ChangeEmailAsync(newEmail, userId, userRole);
-            if (response.StatusCode == 404)
-                return NotFound(response);
-            if (response.StatusCode == 400)
-                return BadRequest(response);
-            return Ok(response);
-        }
+        //[HttpPut("ChangeEmail/{newEmail}")]
+        //[Authorize(Roles = "Student, Doctor, Admin")]
+        //public async Task<IActionResult> ChangeEmail(string newEmail)
+        //{
+        //    if (string.IsNullOrEmpty(newEmail))
+        //        return BadRequest(new ApiResponse(400, "New email is invalid.", new { IsSuccess = false }));
+        //    var userId = User.FindFirst("UserId")?.Value;
+        //    var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+        //    if (string.IsNullOrEmpty(userId))
+        //        return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
+        //    if (string.IsNullOrEmpty(userRole))
+        //        return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+        //    var response = await _userProfileService.ChangeEmailAsync(newEmail, userId, userRole);
+        //    if (response.StatusCode == 404)
+        //        return NotFound(response);
+        //    if (response.StatusCode == 400)
+        //        return BadRequest(response);
+        //    return Ok(response);
+        //}
 
         [HttpPut("ChangePassword")]
         [Authorize(Roles = "Student, Doctor, Admin")]

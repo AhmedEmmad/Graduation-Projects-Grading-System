@@ -10,19 +10,18 @@
         public string Specialty { get; set; }
         public string Year { get; set; }
         public string Term { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastUpdatedAt { get; set; } = null;
+        public bool IsActive { get; set; } = true; // property to soft delete/disable criteria
 
-        public int? TeamId { get; set; } = null; // Foreign Key Of Id In Team Table
         public int AcademicAppointmentId { get; set; }
 
 
         #region Navigation Properties
-        public Team Team { get; set; }
+        public AcademicAppointment AcademicAppointment { get; set; }
         public ICollection<Schedule> Schedules { get; set; } = new HashSet<Schedule>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
-        public ICollection<ScheduleCriteria> ScheduleCriterias { get; set; } = new HashSet<ScheduleCriteria>();
-        public AcademicAppointment AcademicAppointment { get; set; }
+        public ICollection<Team> Teams { get; set; } = new HashSet<Team>();
         #endregion
     }
 }

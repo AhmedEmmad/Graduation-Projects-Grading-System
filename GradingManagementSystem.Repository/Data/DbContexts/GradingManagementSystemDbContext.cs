@@ -37,22 +37,10 @@ namespace GradingManagementSystem.Repository.Data.DbContexts
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<TaskMember> TaskMembers { get; set; }
         public DbSet<Invitation> Invitations { get; set; }
-
         public DbSet<Criteria> Criterias { get; set; }
         public DbSet<Schedule> Schedules { get; set; }
-        public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
-
-        public DbSet<SupervisorGrading> SupervisorGradings { get; set; }
-        public DbSet<GradingCriteria> GradingCriterias { get; set; }
-        public DbSet<GradingSchedule> GradingSchedules { get; set; }
-        public DbSet<Grade> Grades { get; set; }
-        public DbSet<ScheduleCriteria> ScheduleCriterias { get; set; }
-        public DbSet<Committee> Committees { get; set; }
-        public DbSet<CommitteeAssignment> CommitteeAssignments { get; set; }
-        public DbSet<DoctorCommittee> DoctorCommittees { get; set; }
-        public DbSet<FinalScore> FinalScores { get; set; }
-        public DbSet<Examiner> Examiners { get; set; }
+        public DbSet<CommitteeDoctorSchedule> CommitteeDoctorSchedules { get; set; }
+        public DbSet<AcademicAppointment> AcademicAppointments { get; set; }
         public DbSet<Evaluation> Evaluations { get; set; }
-
     }
 }

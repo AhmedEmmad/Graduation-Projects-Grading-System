@@ -22,9 +22,6 @@ namespace GradingManagementSystem.Core.DTOs
         [Required(ErrorMessage = "Specialty is required.")]
         public string Specialty { get; set; }
 
-        [Required(ErrorMessage = "Year is required.")]
-        public string Year { get; set; } // Format: "2023-2024"
-
         [Required(ErrorMessage = "Term is required.")]
         public string Term { get; set; }
     }

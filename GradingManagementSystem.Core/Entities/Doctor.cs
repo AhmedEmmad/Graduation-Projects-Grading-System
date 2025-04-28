@@ -17,10 +17,9 @@ namespace GradingManagementSystem.Core.Entities
         public ICollection<Team> Teams { get; set; } = new HashSet<Team>();
         public ICollection<TeamRequestDoctorProjectIdea> TeamsRequestDoctorProjectIdeas { get; set; }
         public ICollection<TaskItem> Tasks { get; set; } = new HashSet<TaskItem>();
-        public ICollection<DoctorSchedule> DoctorSchedules { get; set; } = new HashSet<DoctorSchedule>();
-        public ICollection<SupervisorGrading> SupervisorGradings { get; set; } = new HashSet<SupervisorGrading>();
-        public ICollection<DoctorCommittee> DoctorCommittees { get; set; } = new HashSet<DoctorCommittee>();
+        public ICollection<CommitteeDoctorSchedule> DoctorSchedules { get; set; } = new HashSet<CommitteeDoctorSchedule>();
         public ICollection<Schedule> Schedules { get; set; } = new HashSet<Schedule>();
+        public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         #endregion
     }
 }

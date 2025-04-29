@@ -13,7 +13,7 @@
         public DateTime SecondTermEnd { get; set; }
 
         public string Status { get; set; } = "Inactive"; // "Active" or "Inactive"
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? LastUpdatedAt { get; set; } = null;
 
 

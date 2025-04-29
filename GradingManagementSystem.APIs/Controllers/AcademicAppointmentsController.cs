@@ -19,6 +19,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
+        // Finished / Tested
         [HttpPost("CreateAppointment")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateNewAcademicAppointment(CreateAcademicAppointmentDto model)
@@ -37,6 +38,13 @@ namespace GradingManagementSystem.APIs.Controllers
             if (model.FirstTermEnd > model.SecondTermEnd)
                 return BadRequest(new ApiResponse(400, "First term end date cannot be after the second term end date.", new { IsSuccess = false }));
 
+            if (model.Year.Length != 9 || !model.Year.Contains("-"))
+                return BadRequest(new ApiResponse(400, "Invalid academic year format. Use 'YYYY-YYYY'.", new { IsSuccess = false }));
+
+            var existingAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(ea => ea.Year == model.Year);
+            if (existingAppointment != null)
+                return BadRequest(new ApiResponse(400, "Academic appointment for this year already exists.", new { IsSuccess = false }));
+
             var newAcademicAppointment = new AcademicAppointment
             {
                 Year = model.Year,
@@ -48,9 +56,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _dbContext.AcademicAppointments.AddAsync(newAcademicAppointment);
             await _dbContext.SaveChangesAsync();
-            return Ok(new ApiResponse(200, "Academic appointment created successfully.", newAcademicAppointment));
+            return Ok(new ApiResponse(200, "Academic appointment created successfully.", new { IsSuccess = true }));
         }
 
+        // Finished / Tested
         [HttpGet("AllYears")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllAcademicAppointments()
@@ -60,6 +69,7 @@ namespace GradingManagementSystem.APIs.Controllers
            
             var academicYearAppointments = await _dbContext.AcademicAppointments.Select(a => new AcademicYearAppointmentDto
             {
+                Id = a.Id,
                 Year = a.Year,
                 FirstTermStart = a.FirstTermStart,
                 FirstTermEnd = a.FirstTermEnd,
@@ -71,12 +81,13 @@ namespace GradingManagementSystem.APIs.Controllers
             if (academicYearAppointments == null || !academicYearAppointments.Any())
                 return NotFound(new ApiResponse(404, "No academic appointments found.", new { IsSuccess = false }));
 
-            return Ok(new ApiResponse(200, "Academic appointments retrieved successfully.", new { IsSuccess = true, academicYearAppointments }));
+            return Ok(new ApiResponse(200, "Academic appointment years retrieved successfully.", new { IsSuccess = true, academicYearAppointments }));
         }
 
+        // Finished / Tested
         [HttpPut("SetActiveYear/{appointmentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> SetActiveAcademicYear(int appointmentId)
+        public async Task<IActionResult> SetActiveAcademicYear([FromBody] int appointmentId)
         {
             if (appointmentId <= 0)
                 return BadRequest(new ApiResponse(400, "Invalid appointment ID.", new { IsSuccess = false }));
@@ -85,6 +96,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "Academic appointment not found.", new { IsSuccess = false }));
             
             academicAppointment.Status = "Active";
+            academicAppointment.LastUpdatedAt = DateTime.UtcNow;
             _dbContext.AcademicAppointments.Update(academicAppointment);
             var remainingAcademicAppointments = await _dbContext.AcademicAppointments.Where(a => a.Id != appointmentId).ToListAsync();
             foreach (var appointment in remainingAcademicAppointments)

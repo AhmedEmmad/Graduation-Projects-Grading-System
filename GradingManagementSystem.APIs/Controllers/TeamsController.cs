@@ -25,11 +25,12 @@ namespace GradingManagementSystem.APIs.Controllers
             _teamRepository = teamRepository;
         }
 
+        // Finished / Tested
         [HttpGet("AllTeamsWithProjects")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllTeams()
         {
-            var teams = await _dbContext.Teams.Where(t => t.HasProject == true).ToListAsync();
+            var teams = await _dbContext.Teams.Include(t => t.Leader).Include(t => t.Supervisor).Where(t => t.HasProject == true).ToListAsync();
             if (teams == null || !teams.Any())
                 return NotFound(new ApiResponse(404, "No teams found.", new { IsSuccess = false }));
             var result = teams.Select(t => new TeamForSettingScheduleDto
@@ -38,9 +39,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 Name = t.Name,
                 HasProject = t.HasProject,
                 LeaderId = t.LeaderId,
-                LeaderName = t.Leader.FullName,
+                LeaderName = t.Leader?.FullName,
                 SupervisorId = t.SupervisorId,
-                SupervisorName = t.Supervisor.FullName,
+                SupervisorName = t.Supervisor?.FullName,
             }).ToList();
             return Ok(new ApiResponse(200, "Teams with projects have been successfully retrieved.", new { IsSuccess = true, Teams = result }));
         }

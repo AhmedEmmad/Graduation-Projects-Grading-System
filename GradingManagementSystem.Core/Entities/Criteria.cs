@@ -10,7 +10,7 @@
         public string Specialty { get; set; }
         public string Year { get; set; }
         public string Term { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? LastUpdatedAt { get; set; } = null;
         public bool IsActive { get; set; } = true; // property to soft delete/disable criteria
 
@@ -22,6 +22,7 @@
         public ICollection<Schedule> Schedules { get; set; } = new HashSet<Schedule>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         public ICollection<Team> Teams { get; set; } = new HashSet<Team>();
+        public ICollection<CriteriaSchedule> CriteriaSchedules { get; set; } = new List<CriteriaSchedule>();
         #endregion
     }
 }

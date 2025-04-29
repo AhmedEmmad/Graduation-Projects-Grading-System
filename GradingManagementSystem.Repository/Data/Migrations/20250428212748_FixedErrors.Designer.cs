@@ -4,6 +4,7 @@ using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GradingManagementSystem.Repository.Data.Migrations
 {
     [DbContext(typeof(GradingManagementSystemDbContext))]
-    partial class GradingManagementSystemDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250428212748_FixedErrors")]
+    partial class FixedErrors
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -21,21 +24,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
-
-            modelBuilder.Entity("CriteriaSchedule", b =>
-                {
-                    b.Property<int>("CriteriasId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("SchedulesId")
-                        .HasColumnType("int");
-
-                    b.HasKey("CriteriasId", "SchedulesId");
-
-                    b.HasIndex("SchedulesId");
-
-                    b.ToTable("CriteriaSchedule");
-                });
 
             modelBuilder.Entity("CriteriaTeam", b =>
                 {
@@ -211,32 +199,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("AcademicAppointmentId");
 
                     b.ToTable("Criterias");
-                });
-
-            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CriteriaId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MaxGrade")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScheduleId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CriteriaId");
-
-                    b.HasIndex("ScheduleId");
-
-                    b.ToTable("CriteriaSchedules");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -576,6 +538,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<int?>("CriteriaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DoctorId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -595,6 +563,10 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AcademicAppointmentId");
+
+                    b.HasIndex("CriteriaId");
+
+                    b.HasIndex("DoctorId");
 
                     b.HasIndex("TeamId");
 
@@ -1042,21 +1014,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("CriteriaSchedule", b =>
-                {
-                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", null)
-                        .WithMany()
-                        .HasForeignKey("CriteriasId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", null)
-                        .WithMany()
-                        .HasForeignKey("SchedulesId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("CriteriaTeam", b =>
                 {
                     b.HasOne("GradingManagementSystem.Core.Entities.Criteria", null)
@@ -1111,25 +1068,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("AcademicAppointment");
-                });
-
-            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
-                {
-                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", "Criteria")
-                        .WithMany("CriteriaSchedules")
-                        .HasForeignKey("CriteriaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", "Schedule")
-                        .WithMany("CriteriaSchedules")
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Criteria");
-
-                    b.Navigation("Schedule");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -1264,6 +1202,14 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasForeignKey("AcademicAppointmentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", null)
+                        .WithMany("Schedules")
+                        .HasForeignKey("CriteriaId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Doctor", null)
+                        .WithMany("Schedules")
+                        .HasForeignKey("DoctorId");
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
                         .WithMany("Schedules")
@@ -1474,9 +1420,9 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
                 {
-                    b.Navigation("CriteriaSchedules");
-
                     b.Navigation("Evaluations");
+
+                    b.Navigation("Schedules");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -1486,6 +1432,8 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Navigation("DoctorSchedules");
 
                     b.Navigation("Evaluations");
+
+                    b.Navigation("Schedules");
 
                     b.Navigation("Tasks");
 
@@ -1514,8 +1462,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Schedule", b =>
                 {
                     b.Navigation("CommitteeDoctorSchedules");
-
-                    b.Navigation("CriteriaSchedules");
 
                     b.Navigation("Evaluations");
                 });

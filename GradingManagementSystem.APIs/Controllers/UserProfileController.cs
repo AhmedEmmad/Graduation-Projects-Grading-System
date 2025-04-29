@@ -28,6 +28,10 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> GetProfile()
         {
+            //var userTimezone = _Request.Headers["X-Timezone"].ToString();
+            //var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(userTimezone);
+            //var userTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
+
             var timezoneId = Request.Headers["X-User-Timezone"].FirstOrDefault();
             if (string.IsNullOrEmpty(timezoneId))
                 return BadRequest(new ApiResponse(400, "Timezone is invalid.", new { IsSuccess = false }));

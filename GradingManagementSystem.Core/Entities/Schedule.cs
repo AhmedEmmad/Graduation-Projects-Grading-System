@@ -4,7 +4,7 @@
     {
         public int TeamId { get; set; } // Foreign Key Of Id In Team Table
         public DateTime ScheduleDate { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
         public DateTime? LastUpdatedAt { get; set; } = null;
         public bool IsActive { get; set; } = true; // property to soft delete/disable schedule
         public string Status { get; set; } = "Upcoming"; // "Upcoming", "InProgress", "Completed"
@@ -16,6 +16,8 @@
         public ICollection<CommitteeDoctorSchedule> CommitteeDoctorSchedules { get; set; } = new HashSet<CommitteeDoctorSchedule>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         public AcademicAppointment AcademicAppointment { get; set; }
+        public ICollection<Criteria> Criterias { get; set; } = new HashSet<Criteria>();
+        public ICollection<CriteriaSchedule> CriteriaSchedules { get; set; } = new List<CriteriaSchedule>();
         #endregion
     }
 }

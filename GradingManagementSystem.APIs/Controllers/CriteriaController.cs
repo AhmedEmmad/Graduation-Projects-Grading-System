@@ -21,7 +21,8 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork = unitOfWork;
             _dbContext = dbContext;
         }
-        // Finished
+        
+        // Finished / Tested
         [HttpPost("CreateCriteria")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateCriteria([FromBody] CreateCriteriaDto model)
@@ -42,7 +43,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if(model.Term != "First-Term" && model.Term != "Second-Term")
                 return BadRequest(new ApiResponse(400, "Invalid term. Must be 'First-Term' or 'Second-Term'.", new { IsSuccess = false }));
 
-            var currentDate = DateTime.UtcNow;
+            var currentDate = DateTime.Now;
             
             if(model.Term == "First-Term")
             {
@@ -80,7 +81,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Criteria created successfully with ID: '{newCriteria.Id}' for the Program: '{newCriteria.Specialty}'.", new { IsSuccess = true }));
         }
 
-        // Finished
+        // Finished / Tested ...
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> GetAllCriteriasForEvaluation()
@@ -103,6 +104,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criterias retrieved successfully.", new { IsSuccess = true , criteriaList }));
         }
         
+        // Finished / Tested
         [HttpGet("{criteriaId}")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> GetCriteriaById(int criteriaId)
@@ -187,12 +189,15 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria updated successfully.", new { IsSuccess = true }));
         }
 
-
+        // Finished / Tested
         [HttpDelete("DeleteCriteria/{criteriaId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteCriteria(int criteriaId)
+        public async Task<IActionResult> DeleteCriteria([FromBody] int criteriaId)
         {
-            var existingCriteria = await _unitOfWork.Repository<Criteria>().GetByIdAsync(criteriaId);
+            if (criteriaId <= 0)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+
+            var existingCriteria = await _unitOfWork.Repository<Criteria>().FindAsync(c => c.Id == criteriaId);
             if (existingCriteria == null)
                 return NotFound(new ApiResponse(404, "Criteria not found.", new { IsSuccess = false }));
 

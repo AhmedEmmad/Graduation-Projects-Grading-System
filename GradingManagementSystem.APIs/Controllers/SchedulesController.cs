@@ -169,7 +169,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = schedules }));
         }
 
-        // Finished
+        // Finished / Tested
         [HttpPost("CreateSchedule")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleDto model)
@@ -181,17 +181,17 @@ namespace GradingManagementSystem.APIs.Controllers
             if (team == null)
                 return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
 
-            if (model.ScheduleDate <= DateTime.UtcNow)
+            if (model.ScheduleDate <= DateTime.Now)
                 return BadRequest(new ApiResponse(400, "Schedule Date must be in the future.", new { IsSuccess = false }));
 
             var activeAcademicAppointment = await _dbContext.AcademicAppointments
                 .Where(a => a.Status == "Active")
                 .FirstOrDefaultAsync();
 
-            if (model.ScheduleDate < activeAcademicAppointment.FirstTermStart &&
-                model.ScheduleDate > activeAcademicAppointment.FirstTermEnd &&
-                model.ScheduleDate < activeAcademicAppointment.SecondTermStart &&
-                model.ScheduleDate > activeAcademicAppointment.SecondTermEnd
+            if (model.ScheduleDate < activeAcademicAppointment?.FirstTermStart &&
+                model.ScheduleDate > activeAcademicAppointment?.FirstTermEnd &&
+                model.ScheduleDate < activeAcademicAppointment?.SecondTermStart &&
+                model.ScheduleDate > activeAcademicAppointment?.SecondTermEnd
                )
                 return BadRequest(new ApiResponse(400, "Schedule Date must be within the active academic appointment period.", new { IsSuccess = false }));
 
@@ -207,7 +207,8 @@ namespace GradingManagementSystem.APIs.Controllers
             var newSchedule = new Schedule
             {
                 TeamId = model.TeamId,
-                ScheduleDate = model.ScheduleDate
+                ScheduleDate = model.ScheduleDate,
+                AcademicAppointmentId = activeAcademicAppointment.Id
             };
 
             await _unitOfWork.Repository<Schedule>().AddAsync(newSchedule);
@@ -232,7 +233,20 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _unitOfWork.Repository<CommitteeDoctorSchedule>().AddAsync(committeeSupervisorSchedule);
 
+            // Add CriteriaSchedule entries
+            var criterias = await _dbContext.Criterias.Where(c => c.Specialty == team.Specialty).ToListAsync(); // Fetch all criteria
+            var criteriaSchedules = criterias.Select(c => new CriteriaSchedule
+            {
+                CriteriaId = c.Id,
+                ScheduleId = newSchedule.Id,
+                MaxGrade = c.MaxGrade,
+            }).ToList();
+
+            foreach (var criteriaSchedule in criteriaSchedules)
+                await _unitOfWork.Repository<CriteriaSchedule>().AddAsync(criteriaSchedule);
+
             await _unitOfWork.CompleteAsync();
+
             return Ok(new ApiResponse(200, $"Schedule created successfully for this team ID: '{team.Id}' with schedule ID: '{newSchedule.Id}'.", new { IsSuccess = true }));
         }
     }

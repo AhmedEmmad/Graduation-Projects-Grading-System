@@ -4,6 +4,7 @@ using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GradingManagementSystem.Repository.Data.Migrations
 {
     [DbContext(typeof(GradingManagementSystemDbContext))]
-    partial class GradingManagementSystemDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250429000825_FixedRelationshipsBetweenDoctorsAndSchedulesAndCriterias")]
+    partial class FixedRelationshipsBetweenDoctorsAndSchedulesAndCriterias
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -211,32 +214,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("AcademicAppointmentId");
 
                     b.ToTable("Criterias");
-                });
-
-            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CriteriaId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("MaxGrade")
-                        .HasColumnType("int");
-
-                    b.Property<int>("ScheduleId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CriteriaId");
-
-                    b.HasIndex("ScheduleId");
-
-                    b.ToTable("CriteriaSchedules");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -1113,25 +1090,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Navigation("AcademicAppointment");
                 });
 
-            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
-                {
-                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", "Criteria")
-                        .WithMany("CriteriaSchedules")
-                        .HasForeignKey("CriteriaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", "Schedule")
-                        .WithMany("CriteriaSchedules")
-                        .HasForeignKey("ScheduleId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Criteria");
-
-                    b.Navigation("Schedule");
-                });
-
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
                 {
                     b.HasOne("GradingManagementSystem.Core.Entities.Identity.AppUser", "AppUser")
@@ -1474,8 +1432,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
                 {
-                    b.Navigation("CriteriaSchedules");
-
                     b.Navigation("Evaluations");
                 });
 
@@ -1514,8 +1470,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Schedule", b =>
                 {
                     b.Navigation("CommitteeDoctorSchedules");
-
-                    b.Navigation("CriteriaSchedules");
 
                     b.Navigation("Evaluations");
                 });

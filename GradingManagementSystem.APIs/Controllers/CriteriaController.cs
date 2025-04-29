@@ -9,8 +9,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GradingManagementSystem.APIs.Controllers
 {
-    [ApiController]
     [Route("api/[controller]")]
+    [ApiController]
     public class CriteriaController : ControllerBase
     {
         private readonly IUnitOfWork _unitOfWork;
@@ -31,14 +31,14 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>()
-                                                    .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator && c.Specialty == model.Specialty);
+                                                    .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator && c.Specialty == model.Specialty && c.IsActive);
             if (existingCriteria != null)
-                return BadRequest(new ApiResponse(400, $"Criteria with the same name and evaluator already exists for this program: '{model.Specialty}'.", new { IsSuccess = false }));
+                return BadRequest(new ApiResponse(400, $"Criteria with the same name and evaluator already exists for this specialty: '{model.Specialty}'.", new { IsSuccess = false }));
 
             var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
 
             if (activeAppointment == null)
-                return BadRequest(new ApiResponse(400, "You can't create a criteria in this time because no active academic appointment exist.", new { IsSuccess = false }));
+                return BadRequest(new ApiResponse(400, "You can't create a criteria in this time because no active academic appointment exists.", new { IsSuccess = false }));
 
             if(model.Term != "First-Term" && model.Term != "Second-Term")
                 return BadRequest(new ApiResponse(400, "Invalid term. Must be 'First-Term' or 'Second-Term'.", new { IsSuccess = false }));
@@ -78,19 +78,19 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.Repository<Criteria>().AddAsync(newCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria created successfully with ID: '{newCriteria.Id}' for the Program: '{newCriteria.Specialty}'.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Criteria created successfully with ID: '{newCriteria.Id}' for the specialty: '{newCriteria.Specialty}'.", new { IsSuccess = true }));
         }
 
-        // Finished / Tested ...
+        // Finished / Tested
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Doctor")]
-        public async Task<IActionResult> GetAllCriteriasForEvaluation()
+        public async Task<IActionResult> GetAllCriteriaList()
         {
-            var existingCriterias = await _unitOfWork.Repository<Criteria>().GetAllAsync();
-            if (existingCriterias == null || !existingCriterias.Any())
-                return NotFound(new ApiResponse(404, "No Criterias Found.", new { IsSuccess = false } ));
+            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().GetAllAsync();
+            if (existingCriteriaList == null || !existingCriteriaList.Any())
+                return NotFound(new ApiResponse(404, "No criteria list Found.", new { IsSuccess = false } ));
 
-            var criteriaList = existingCriterias.Select(c => new UpdateCriteriaDto
+            var criteriaList = existingCriteriaList.Select(c => new CriteriaObjectDto
             {
                 Id = c.Id,
                 Name = c.Name,
@@ -99,9 +99,13 @@ namespace GradingManagementSystem.APIs.Controllers
                 Evaluator = c.Evaluator,
                 GivenTo = c.GivenTo,
                 Specialty = c.Specialty,
+                Year = c.Year,
                 Term = c.Term,
+                IsActive = c.IsActive,
+                CreatedAt = c.CreatedAt,
+                LastUpdatedAt = c.LastUpdatedAt,
             }).ToList();
-            return Ok(new ApiResponse(200, "Criterias retrieved successfully.", new { IsSuccess = true , criteriaList }));
+            return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true , criteriaList }));
         }
         
         // Finished / Tested
@@ -116,7 +120,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (existingCriteria == null)
                 return NotFound(new ApiResponse(404, "Criteria not found.", new { IsSuccess = false }));
 
-            var criteria = new CriteriaDto
+            var criteria = new CriteriaObjectDto
             {
                 Id = existingCriteria.Id,
                 Name = existingCriteria.Name,
@@ -128,11 +132,13 @@ namespace GradingManagementSystem.APIs.Controllers
                 Specialty = existingCriteria.Specialty,
                 Term = existingCriteria.Term,
                 CreatedAt = existingCriteria.CreatedAt,
+                LastUpdatedAt = existingCriteria.LastUpdatedAt,
+                IsActive = existingCriteria.IsActive,
             };
             return Ok(new ApiResponse(200, "Criteria retrieved successfully.", new { IsSuccess = true , criteria }));
         }
 
-        // Finished
+        // Finished / Tested
         [HttpPut("UpdateCriteria")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateCriteria([FromBody] UpdateCriteriaDto model)
@@ -146,7 +152,8 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (model.Term != "First-Term" && model.Term != "Second-Term")
                 return BadRequest(new ApiResponse(400, "Invalid term. Must be 'First-Term' or 'Second-Term'.", new { IsSuccess = false }));
-            var currentDate = DateTime.UtcNow;
+            
+            var currentDate = DateTime.Now;
             if (model.Term == "First-Term")
             {
                 if (currentDate < existingCriteria.AcademicAppointment.FirstTermStart && currentDate > existingCriteria.AcademicAppointment.FirstTermEnd)
@@ -166,9 +173,9 @@ namespace GradingManagementSystem.APIs.Controllers
             if (existingCriteria.Name != model.Name)
             {
                 var criteriaWithSameName = await _unitOfWork.Repository<Criteria>()
-                    .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator && c.Specialty == model.Specialty);
+                    .FindAsync(c => c.Name == model.Name && c.Evaluator == model.Evaluator && c.Specialty == model.Specialty && c.IsActive);
                 if (criteriaWithSameName != null)
-                    return BadRequest(new ApiResponse(400, $"Criteria with the same name and evaluator already exists for this program: '{model.Specialty}'.", new { IsSuccess = false }));
+                    return BadRequest(new ApiResponse(400, $"Criteria with the same name and evaluator already exists for this specialty: '{model.Specialty}'.", new { IsSuccess = false }));
             }
 
             existingCriteria.Name = model.Name;
@@ -179,7 +186,7 @@ namespace GradingManagementSystem.APIs.Controllers
             existingCriteria.Specialty = model.Specialty;
             existingCriteria.IsActive = model.IsActive;
             existingCriteria.Term = model.Term;
-            existingCriteria.LastUpdatedAt = DateTime.UtcNow;
+            existingCriteria.LastUpdatedAt = DateTime.Now;
             existingCriteria.Year = existingCriteria.AcademicAppointment.Year;
             existingCriteria.AcademicAppointmentId = existingCriteria.AcademicAppointment.Id;
 
@@ -192,7 +199,7 @@ namespace GradingManagementSystem.APIs.Controllers
         // Finished / Tested
         [HttpDelete("DeleteCriteria/{criteriaId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteCriteria([FromBody] int criteriaId)
+        public async Task<IActionResult> DeleteCriteria(int criteriaId)
         {
             if (criteriaId <= 0)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));

@@ -40,52 +40,43 @@ namespace GradingManagementSystem.Service
             _dbContext = dbContext;
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> RegisterStudentAsync(StudentRegisterDto model)
         {            
             var existingAccount = await _userManager.FindByEmailAsync(model.Email);
             if (existingAccount != null)
-                return new ApiResponse(400, $"This email \'{model.Email}\' is already taken/registered, Please register with another email.", new { IsSuccess = false });
+                return new ApiResponse(400, $"This email '{model.Email}' is already taken or registered, Please register with another email.", new { IsSuccess = false });
 
             var existingTemporaryUser = await _dbContext.TemporaryUsers.FirstOrDefaultAsync(u => u.Email == model.Email);
 
             // Student registered recently but not verified an email
             if (existingTemporaryUser != null)
             {
-                var existingOtpCode = await _dbContext.UserOtps.FirstOrDefaultAsync(o => o.Email == model.Email && DateTime.Now < o.ExpiryTime);
+                var existingOtpCode = await _dbContext.UserOtps.FirstOrDefaultAsync(o => o.Email == model.Email);
 
                 if (existingOtpCode != null)
+                    _dbContext.UserOtps.Remove(existingOtpCode);
+
+                await _dbContext.SaveChangesAsync();
+
+                string newOtp = OtpGenerator.GenerateOtp();
+                DateTime newExpiration = DateTime.Now.AddMinutes(5);
+                var newOtpVerification = new UserOtp
                 {
-                    await _emailService.SendEmailAsync(model.Email, "Welcome, Your OTP Code Verification",
-                           $@"
-                           <p>Hi {model.FullName},</p>
-                          <p>Here is your One-Time Password (OTP):</p>
-                          <h1 style='color: #00bfff;'>{existingOtpCode.OtpCode}</h1>
-                          <p><strong>Note:</strong> This code is valid until this time: <strong>{existingOtpCode.ExpiryTime}</strong>.</p>
-                           ");
+                    Email = model.Email,
+                    OtpCode = newOtp,
+                    ExpiryTime = newExpiration
+                };
+                await _dbContext.UserOtps.AddAsync(newOtpVerification);
+                await _dbContext.SaveChangesAsync();
 
-                    return new ApiResponse(200, "Your OTP Code Verification has been resent to your email. Check it now", new { IsSuccess = true });
-                }
-                else
-                {
-                    string newOtp = OtpGenerator.GenerateOtp();
-                    DateTime newExpiration = DateTime.Now.AddMinutes(5);
-                    var newOtpVerification = new UserOtp
-                    {
-                        Email = model.Email,
-                        OtpCode = newOtp,
-                        ExpiryTime = newExpiration
-                    };
-                    await _dbContext.UserOtps.AddAsync(newOtpVerification);
-                    await _dbContext.SaveChangesAsync();
+                await _emailService.SendEmailAsync(model.Email, "Welcome, Your OTP Code Verification",
+                    $"<p>Hi {model.FullName},</p>" +
+                    $"<p>Welcome! We're excited to have you join us.</p>" +
+                    $"<p>Your One-Time Password (OTP) for email verification is:</p>" +
+                    $"<h2 style='color: #00bfff;'>{newOtp}</h2>");
 
-                    await _emailService.SendEmailAsync(model.Email, "Welcome, Your OTP Code Verification",
-                        $"<p>Hi {model.FullName},</p>" +
-                        $"<p>Welcome! We're excited to have you join us.</p>" +
-                        $"<p>Your One-Time Password (OTP) for email verification is:</p>" +
-                        $"<h2 style='color: #00bfff;'>{newOtp}</h2>");
-
-                    return new ApiResponse(200, "Your OTP Code Verification has been resent to your email. Check it now", new { IsSuccess = true });
-                }
+                return new ApiResponse(200, $"Your OTP Code Verification has been resent to your email until expiry time: '{newOtpVerification.ExpiryTime}'. Check it now", new { IsSuccess = true });
             }
             
             string profilePicturePath = "";
@@ -134,9 +125,10 @@ namespace GradingManagementSystem.Service
                         $"<p>We’re thrilled to have you here! To complete your registration, Please verify your email using the otp code below:</p>" +
                         $"<h2 style='color: #00bfff;'>{newOtpCode}</h2>");
 
-            return new ApiResponse(200, $"Registration successful, The OTP Code Verification has been sent to your email with expiry time: '{newOtpCodeVerification.ExpiryTime}'. Check it now", new { IsSuccess = true });
+            return new ApiResponse(200, $"Registration successful, The OTP Code Verification has been sent to your email until expiry time: '{newOtpCodeVerification.ExpiryTime}'. Check it now", new { IsSuccess = true });
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> RegisterDoctorAsync(DoctorRegisterDto model)
         {
             var existingDoctor = await _userManager.FindByEmailAsync(model.Email);
@@ -167,32 +159,34 @@ namespace GradingManagementSystem.Service
             return new ApiResponse(200, $"Doctor registered successfully with ID: '{doctor.Id}'.", new { IsSuccess = true });
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> LoginAsync(LoginDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user is null)
-                return new ApiResponse(401, "Account Not Found(Unauthorized).");
+                return new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false });
 
             var userResult = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
 
             if (!userResult.Succeeded)
-                return new ApiResponse(401, "Incorrect password.");
+                return new ApiResponse(401, "Incorrect password.", new { IsSuccess = false });
 
             var token = await _tokenService.CreateTokenAsync(user);
             
-            return new ApiResponse(200, "Login successfully.", new { Token = token });
+            return new ApiResponse(200, "Login successfully.", new { IsSuccess = true, Token = token });
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> ForgetPasswordAsync(ForgetPasswordDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
             if (user is null)
-                return new ApiResponse(400, "Account Not Found.");
+                return new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false });
 
             var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             if (resetToken == null || resetToken.Trim().Length == 0)
-                    return new ApiResponse(400, "Failed to generate reset token.");
+                    return new ApiResponse(400, "Failed to generate reset token.", new { IsSuccess = false });
 
             var resetLink = $"https://graduation-project-angular.vercel.app/reset-password?userEmail={model.Email}&token={resetToken}";
 
@@ -208,27 +202,29 @@ namespace GradingManagementSystem.Service
 
             await _emailService.SendEmailAsync(model.Email, "Reset Your Password", emailBody);
 
-            return new ApiResponse(200, "Password reset link has been sent to your email."); 
+            return new ApiResponse(200, "Password reset link has been sent to your email.", new { IsSuccess = true }); 
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> ResetPasswordAsync(ResetPasswordDto model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
 
             if (user is null)
-                return new ApiResponse(404, "Account Not Found(Unauthorized).");
+                return new ApiResponse(404, "Account Not Found.", new { IsSuccess = false });
 
             if(model.NewPassword != model.ConfirmPassword)
-                return new ApiResponse(400, "New password and confirm password are not matched.");
+                return new ApiResponse(400, "New password and confirm password are not matched.", new { IsSuccess = false });
 
             var result = await _userManager.ResetPasswordAsync(user, model.Token, model.ConfirmPassword);
 
             if (!result.Succeeded)
-                return new ApiResponse(400, "Password reset failed, Please check the token or try again later.");
+                return new ApiResponse(400, "Password reset failed, Please check the token or try again later.", new { IsSuccess = false });
 
-            return new ApiResponse(200, "Password reset successfully.");
+            return new ApiResponse(200, "Password reset successfully.", new { IsSuccess = true });
         }
 
+        // Finished / Tested
         public async Task<ApiResponse> VerifyEmailByOTPAsync(string otpCode)
         {
             if(string.IsNullOrEmpty(otpCode))
@@ -277,6 +273,41 @@ namespace GradingManagementSystem.Service
             _unitOfWork.Repository<TemporaryUser>().Delete(existingTemporaryUser);
             await _unitOfWork.CompleteAsync();
             return new ApiResponse(200, $"Email verified successfully and user created  with ID: '{newStudent.Id}'.", new { IsSuccess = true });
+        }
+
+        // Finished / Tested
+        public async Task<ApiResponse> ResendOtpAsync(string studentEmail)
+        {
+            var existingTemporaryUser = await _dbContext.TemporaryUsers.FirstOrDefaultAsync(t => t.Email == studentEmail);
+            if (existingTemporaryUser == null)
+                return new ApiResponse(404, $"This '{studentEmail}' is not registered before that.", new { IsSuccess = false });
+
+            var existingOtp = await _dbContext.UserOtps.FirstOrDefaultAsync(u => u.Email == existingTemporaryUser.Email);
+            if(existingOtp != null)
+                _dbContext.UserOtps.Remove(existingOtp);
+
+            await _dbContext.SaveChangesAsync();
+
+            string newOtpCode = OtpGenerator.GenerateOtp();
+            DateTime newExpirationTime = DateTime.Now.AddMinutes(5);
+
+            var newOtpCodeVerification = new UserOtp
+            {
+                Email = existingTemporaryUser.Email,
+                OtpCode = newOtpCode,
+                ExpiryTime = newExpirationTime
+            };
+
+            await _dbContext.UserOtps.AddAsync(newOtpCodeVerification);
+            await _dbContext.SaveChangesAsync();
+
+            await _emailService.SendEmailAsync(existingTemporaryUser.Email, "Welcome, Your OTP Code Verification",
+                    $"<p>Hi {existingTemporaryUser.FullName},</p>" +
+                    $"<p>Welcome! We're excited to have you join us.</p>" +
+                    $"<p>Your One-Time Password (OTP) for email verification is:</p>" +
+                    $"<h2 style='color: #00bfff;'>{newOtpCode}</h2>");
+
+            return new ApiResponse(200, $"Your OTP Code Verification has been resent to your email until expiry time: '{newOtpCodeVerification.ExpiryTime}'. Check it now", new { IsSuccess = true });
         }
     }
 }

@@ -18,6 +18,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _authService = authService;
         }
 
+        // Finished / Tested
         // Student Registration/Creation Flow/Logic
         [HttpPost("StudentRegister")]
         public async Task<IActionResult> StudentRegister([FromForm] StudentRegisterDto model)
@@ -35,6 +36,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
+        // Finished / Tested
         // Doctor Registration Flow
         [HttpPost("DoctorRegister")]
         [Authorize(Roles = "Admin")]
@@ -53,6 +55,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
+        // Finished / Tested
         // User Login Flow
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
@@ -64,13 +67,14 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-
-            if(result.StatusCode == 401)
+            if (result.StatusCode == 401)
                 return Unauthorized(result);
-
+            if (result.StatusCode == 404)
+                return NotFound(result);
             return Ok(result);
         }
 
+        // Finished / Tested
         // User ForgetPassword Flow
         [HttpPost("ForgetPassword")]
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto model)
@@ -82,10 +86,12 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-
+            if (result.StatusCode == 404)
+                return NotFound(result);
             return Ok(result);
         }
 
+        // Finished / Tested
         // User ResetPassword Flow
         [HttpPost("ResetPassword")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
@@ -97,10 +103,12 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-
+            if (result.StatusCode == 404)
+                return NotFound(result);
             return Ok(result);
         }
 
+        // Finished / Tested
         // Student Email Verification Flow
         [HttpPost("EmailVerificationByOtp/{otpCode}")]
         public async Task<IActionResult> VerifyEmailByOTP(string otpCode)
@@ -115,6 +123,23 @@ namespace GradingManagementSystem.APIs.Controllers
             if(result.StatusCode == 404)
                 return NotFound(result);
 
+            return Ok(result);
+        }
+
+        // Finished / Tested
+        // Resend OTP Code Verification Flow
+        [HttpPost("ResendOtp/{studentEmail}")]
+        public async Task<IActionResult> ResendOtpCodeVerification(string studentEmail)
+        {
+            if(studentEmail == null)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new {IsSuccess = false }));
+
+            var result = await _authService.ResendOtpAsync(studentEmail);
+
+            if (result.StatusCode == 400)
+                return BadRequest(result);
+            if (result.StatusCode == 404)
+                return NotFound(result);
             return Ok(result);
         }
     }

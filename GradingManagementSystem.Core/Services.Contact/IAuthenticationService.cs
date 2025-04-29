@@ -11,5 +11,6 @@ namespace GradingManagementSystem.Core.Services.Contact
         Task<ApiResponse> ForgetPasswordAsync(ForgetPasswordDto model);
         Task<ApiResponse> ResetPasswordAsync(ResetPasswordDto model);
         Task<ApiResponse> VerifyEmailByOTPAsync(string otpCode);
+        Task<ApiResponse> ResendOtpAsync(string studentEmail);
     }
 }

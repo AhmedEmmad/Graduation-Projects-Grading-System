@@ -200,7 +200,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, examinationTeamsWithCriterias }));
         }
 
-        // Finished
+        // Finished /
         [HttpGet("AllTeamsForAdminEvaluation")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllTeamsForAdminEvaluation()
@@ -246,46 +246,52 @@ namespace GradingManagementSystem.APIs.Controllers
             if (activeCriterias == null || !activeCriterias.Any())
                 return NotFound(new ApiResponse(404, "No active criteria found for the specialties of admin teams.", new { IsSuccess = false }));
 
-            var adminTeamsWithCriterias = adminTeams.Select(t => new TeamWithCriteriaDto
-            {
-                TeamId = t.Id,
-                TeamName = t.Name,
-                ProjectId = t.FinalProjectIdea.ProjectId,
-                ProjectName = t.FinalProjectIdea.ProjectName,
-                ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
-                Criterias = activeCriterias
-                    .Where(c => c.Specialty == t.Specialty)
-                    .Select(c => new CriteriaDto
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Description = c.Description,
-                        MaxGrade = c.MaxGrade,
-                        Evaluator = c.Evaluator,
-                        GivenTo = c.GivenTo,
-                        Specialty = c.Specialty,
-                        Year = c.Year,
-                        Term = c.Term,
-                        CreatedAt = c.CreatedAt,
-                    }).ToList(),
-                TeamMembers = t.Students.Select(s => new TeamMemberDto
+            var adminTeamsWithCriterias = adminTeams
+                .GroupBy(t => t.Specialty)
+                .Select(group => new TeamUnderSpecialtyForEvaluationDto
                 {
-                    Id = s.Id,
-                    FullName = s.FullName,
-                    Email = s.AppUser.Email,
-                    Specialty = s.Specialty,
-                    InTeam = s.InTeam,
-                    ProfilePicture = s.AppUser.ProfilePicture,
-                }).ToList()
-            }).ToList();
+                    Specialty = group.Key,
+                    Teams = group.Select(t => new TeamWithCriteriaDto
+                    {
+                        TeamId = t.Id,
+                        TeamName = t.Name,
+                        ProjectId = t.FinalProjectIdea.ProjectId,
+                        ProjectName = t.FinalProjectIdea.ProjectName,
+                        ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                        ScheduleId = t.Schedules.FirstOrDefault()?.Id,
+                        ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
+                        ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                        Criterias = activeCriterias
+                            .Where(c => c.Specialty == t.Specialty)
+                            .Select(c => new CriteriaDto
+                            {
+                                Id = c.Id,
+                                Name = c.Name,
+                                Description = c.Description,
+                                MaxGrade = c.MaxGrade,
+                                Evaluator = c.Evaluator,
+                                GivenTo = c.GivenTo,
+                                Specialty = c.Specialty,
+                                Year = c.Year,
+                                Term = c.Term,
+                                CreatedAt = c.CreatedAt,
+                            }).ToList(),
+                        TeamMembers = t.Students.Select(s => new TeamMemberDto
+                        {
+                            Id = s.Id,
+                            FullName = s.FullName,
+                            Email = s.AppUser.Email,
+                            Specialty = s.Specialty,
+                            InTeam = s.InTeam,
+                            ProfilePicture = s.AppUser.ProfilePicture,
+                        }).ToList()
+                    }).ToList()
+                }).ToList();
 
             return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, adminTeamsWithCriterias }));
         }
 
-        // Finished
+        // Finished /
         [HttpPost("SubmitGrades")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> SubmitGrades([FromBody] SubmitEvaluationDto model)
@@ -344,51 +350,150 @@ namespace GradingManagementSystem.APIs.Controllers
                 evaluatorId = doctor.Id;
             }
 
-            foreach (var gradeItem in model.Grades)
+            // Check if evaluations already exist for the team
+            var existingEvaluations = await _dbContext.Evaluations
+                .Where(e => e.TeamId == model.TeamId && e.ScheduleId == model.ScheduleId && e.EvaluatorId == evaluatorId && e.EvaluatorRole == evaluatorRole)
+                .ToListAsync();
+
+            if (existingEvaluations.Any())
             {
-                var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
-                if (criteria == null)
-                    return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                    return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                var existingEvaluation = await _dbContext.Evaluations.FirstOrDefaultAsync(e =>
-                    e.ScheduleId == model.ScheduleId &&
-                    e.CriteriaId == gradeItem.CriteriaId &&
-                    e.EvaluatorId == evaluatorId &&
-                    e.EvaluatorRole == evaluatorRole &&
-                    e.TeamId == model.TeamId &&
-                    e.StudentId == model.StudentId);
-
-                if (existingEvaluation != null)
+                // Update existing evaluations
+                foreach (var evaluation in existingEvaluations)
                 {
-                    existingEvaluation.Grade = gradeItem.Grade;
-                    existingEvaluation.LastUpdatedAt = DateTime.Now;
-                    _dbContext.Evaluations.Update(existingEvaluation);
-                }
-                else
-                {
-                    var newEvaluation = new Evaluation
+                    var gradeItem = model.Grades.FirstOrDefault(g => g.CriteriaId == evaluation.CriteriaId);
+                    if (gradeItem != null)
                     {
-                        ScheduleId = model.ScheduleId,
-                        CriteriaId = gradeItem.CriteriaId,
-                        EvaluatorId = evaluatorId,
-                        EvaluatorRole = evaluatorRole,
-                        TeamId = model.TeamId,
-                        StudentId = model.StudentId,
-                        Grade = gradeItem.Grade,
-                        LastUpdatedAt = DateTime.Now,
-                    };
-                    await _dbContext.Evaluations.AddAsync(newEvaluation);
+                        if (gradeItem.Grade < 0 || gradeItem.Grade > evaluation.Criteria.MaxGrade)
+                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
+
+                        evaluation.Grade = gradeItem.Grade;
+                        evaluation.LastUpdatedAt = DateTime.Now;
+                        evaluation.AdminEvaluation = evaluatorRole == "Admin";
+                        _dbContext.Evaluations.Update(evaluation);
+                    }
+                }
+            }
+            else
+            {
+                // Create new evaluations
+                foreach (var studentId in model.StudentIds)
+                {
+                    foreach (var gradeItem in model.Grades)
+                    {
+                        var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
+                        if (criteria == null)
+                            return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
+
+                        if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
+                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
+
+                        var newEvaluation = new Evaluation
+                        {
+                            ScheduleId = model.ScheduleId,
+                            CriteriaId = gradeItem.CriteriaId,
+                            EvaluatorId = evaluatorId,
+                            EvaluatorRole = evaluatorRole,
+                            TeamId = model.TeamId,
+                            StudentId = studentId,
+                            Grade = gradeItem.Grade,
+                            EvaluationDate = DateTime.Now,
+                        };
+                        if (evaluatorRole == "Admin")
+                            newEvaluation.AdminEvaluation = true;
+
+                        await _dbContext.Evaluations.AddAsync(newEvaluation);
+                    }
                 }
             }
 
             await _dbContext.SaveChangesAsync();
             return Ok(new ApiResponse(200, "Grades submitted successfully.", new { IsSuccess = true }));
         }
-        
-        // Finished
+
+        // Finished /
+        [HttpGet("TeamEvaluations/{teamId}/{scheduleId}")]
+        [Authorize(Roles = "Admin, Doctor")]
+        public async Task<IActionResult> GetTeamEvaluations(int teamId, int scheduleId)
+        {
+            var appUserId = User.FindFirst("UserId")?.Value;
+            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
+            if (appUserId == null || appUserRole == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+
+            if (appUserRole != "Admin" && appUserRole != "Doctor")
+                return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
+
+            int evaluatorId = 0;
+            string evaluatorRole = string.Empty;
+
+            if (appUserRole == "Admin")
+            {
+                var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
+                if (admin == null)
+                    return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
+                evaluatorId = admin.Id;
+                evaluatorRole = "Admin";
+            }
+            else if (appUserRole == "Doctor")
+            {
+                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
+                if (doctor == null)
+                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+
+                var schedule = await _dbContext.Schedules
+                    .Include(s => s.CommitteeDoctorSchedules)
+                    .Include(s => s.Team)
+                    .FirstOrDefaultAsync(s => s.Id == scheduleId);
+                if (schedule == null)
+                    return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
+
+                var isSupervisor = schedule.TeamId == teamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor");
+                var isExaminer = schedule.TeamId == teamId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner");
+
+                if (isSupervisor)
+                {
+                    evaluatorRole = "Supervisor";
+                }
+                else if (isExaminer)
+                {
+                    evaluatorRole = "Examiner";
+                }
+                else
+                {
+                    return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false }));
+                }
+
+                evaluatorId = doctor.Id;
+            }
+
+            // Fetch evaluations for the team and schedule
+            var evaluations = await _dbContext.Evaluations
+                .Include(e => e.Criteria)
+                .Where(e => e.TeamId == teamId && e.ScheduleId == scheduleId && e.EvaluatorId == evaluatorId && e.EvaluatorRole == evaluatorRole)
+                .AsNoTracking()
+                .ToListAsync();
+
+            if (evaluations == null || !evaluations.Any())
+                return NotFound(new ApiResponse(404, "No evaluations found for the specified team and schedule.", new { IsSuccess = false }));
+
+            var evaluationDtos = evaluations.Select(e => new EvaluationObjectDto
+            {
+                EvaluationId = e.Id,
+                CriteriaId = e.CriteriaId,
+                CriteriaName = e.Criteria.Name,
+                CriteriaDescription = e.Criteria.Description,
+                Grade = e.Grade,
+                EvaluationDate = e.EvaluationDate,
+                EvaluatorRole = e.EvaluatorRole,
+                TeamId = e.TeamId,
+                StudentId = e.StudentId
+            }).ToList();
+
+            return Ok(new ApiResponse(200, "Evaluations retrieved successfully.", new { IsSuccess = true, Evaluations = evaluationDtos }));
+        }
+
+        // Finished /
         [HttpGet("StudentGrades")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentGrades()

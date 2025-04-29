@@ -87,7 +87,7 @@ namespace GradingManagementSystem.APIs.Controllers
         // Finished / Tested
         [HttpPut("SetActiveYear/{appointmentId}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> SetActiveAcademicYear([FromBody] int appointmentId)
+        public async Task<IActionResult> SetActiveAcademicYear(int appointmentId)
         {
             if (appointmentId <= 0)
                 return BadRequest(new ApiResponse(400, "Invalid appointment ID.", new { IsSuccess = false }));

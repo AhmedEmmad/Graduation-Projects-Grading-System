@@ -11,6 +11,7 @@ namespace GradingManagementSystem.Core.Entities
         public int? StudentId { get; set; }
         public int? TeamId { get; set; }
         public double Grade { get; set; }
+        public bool AdminEvaluation { get; set; } = false;
         public DateTime EvaluationDate { get; set; } = DateTime.Now;
         public DateTime? LastUpdatedAt { get; set; } = null;
 

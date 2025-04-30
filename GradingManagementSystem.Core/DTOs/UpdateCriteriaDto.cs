@@ -9,8 +9,6 @@
         public string Evaluator { get; set; } // "Admin" Or "Supervisor" Or "Examiner"
         public string GivenTo { get; set; } // "Student" Or "Team"
         public string Specialty { get; set; }
-        public string Year { get; set; }
         public string Term { get; set; }
-        public bool IsActive { get; set; }
     }
 }

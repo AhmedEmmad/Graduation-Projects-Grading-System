@@ -26,26 +26,26 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> CreateNewAcademicAppointment(CreateAcademicAppointmentDto model)
         {
             if (model == null)
-                return BadRequest(CreateErrorResponse("Invalid input data."));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
 
             if(string.IsNullOrWhiteSpace(model.Year) ||
                 model.Year.Length != 9 ||
                 !Regex.IsMatch(model.Year, @"^\d{4}-\d{4}$"))
-                return BadRequest(CreateErrorResponse("Invalid year format, Academic year must be in 'YYYY-YYYY' format."));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid year format, Academic year must be in 'YYYY-YYYY' format."));
 
             var existingAppointment = await _dbContext.AcademicAppointments.AnyAsync(a => a.Year == model.Year);
             if (existingAppointment)
-                return BadRequest(CreateErrorResponse($"Academic appointment for year {model.Year} already exists."));
+                return BadRequest(CreateErrorResponse400BadRequest($"Academic appointment for year {model.Year} already exists."));
 
             if (model.FirstTermStart > model.FirstTermEnd)
-                return BadRequest(CreateErrorResponse("First term start date cannot be after its end date."));
+                return BadRequest(CreateErrorResponse400BadRequest("First term start date cannot be after its end date."));
             if (model.SecondTermStart > model.SecondTermEnd)
-                return BadRequest(CreateErrorResponse("Second term start date cannot be after its end date."));
+                return BadRequest(CreateErrorResponse400BadRequest("Second term start date cannot be after its end date."));
 
             if (model.FirstTermStart > model.SecondTermStart)
-                return BadRequest(CreateErrorResponse("First term cannot start after second term."));
+                return BadRequest(CreateErrorResponse400BadRequest("First term cannot start after second term."));
             if (model.FirstTermEnd > model.SecondTermEnd)
-                return BadRequest(CreateErrorResponse("First term cannot end after second term."));
+                return BadRequest(CreateErrorResponse400BadRequest("First term cannot end after second term."));
 
             var newAcademicAppointment = new AcademicAppointment
             {
@@ -81,7 +81,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     .ToListAsync();
 
             if (academicYearAppointments.Count == 0 || academicYearAppointments == null) // Will comparing with academicYearAppointments.Any();
-                return NotFound(new ApiResponse(404, "No academic appointments found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No academic appointments found."));
 
             return Ok(new ApiResponse(200, "Academic appointments retrieved successfully.", new { IsSuccess = true, academicYearAppointments }));
         }
@@ -92,11 +92,11 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> SetActiveAcademicYearAppointment(int appointmentId)
         {
             if (appointmentId <= 0)
-                return BadRequest(CreateErrorResponse("Invalid appointment ID."));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid appointment ID."));
 
             var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Id == appointmentId);
             if (academicAppointment == null)
-                return NotFound(new ApiResponse(404, "Academic appointment not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Academic appointment not found."));
 
             if (academicAppointment.Status == "Active")
                 return Ok(new ApiResponse(200, "Academic year is already active.", new { IsSuccess = true }));
@@ -114,9 +114,14 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"This academic year appointment {academicAppointment.Year} set to active successfully.", new { IsSuccess = true }));
         }
 
-        private static ApiResponse CreateErrorResponse(string message, object? errors = null)
+        private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {
             return new ApiResponse(400, message, new { IsSuccess = false });
+        }
+
+        private static ApiResponse CreateErrorResponse404NotFound(string message)
+        {
+            return new ApiResponse(404, message, new { IsSuccess = false });
         }
 
     }

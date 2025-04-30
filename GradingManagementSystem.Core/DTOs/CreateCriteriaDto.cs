@@ -4,13 +4,13 @@ namespace GradingManagementSystem.Core.DTOs
 {
     public class CreateCriteriaDto
     {
-        [Required(ErrorMessage = "CriteriaName is required.")]
+        [Required(ErrorMessage = "Criteria Name is required.")]
         public string Name { get; set; }
 
-        [Required(ErrorMessage = "Description is required.")]
+        [Required(ErrorMessage = "Criteria Description is required.")]
         public string Description { get; set; }
 
-        [Required(ErrorMessage = "MaxGrade is required.")]
+        [Required(ErrorMessage = "Maximum Grade is required.")]
         public int MaxGrade { get; set; }
 
         [Required(ErrorMessage = "Evaluator is required.")]

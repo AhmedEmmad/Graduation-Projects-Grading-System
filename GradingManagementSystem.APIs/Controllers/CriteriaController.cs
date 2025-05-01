@@ -163,24 +163,6 @@ namespace GradingManagementSystem.APIs.Controllers
             if (!validTerms.Contains(model.Term))
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid term. Must be 'First-Term' or 'Second-Term'."));
 
-            var currentDateTime = DateTime.Now;
-            if (model.Term == "First-Term")
-            {
-                if (!(currentDateTime.Date >= activeAppointment.FirstTermStart.Date && currentDateTime.Date <= activeAppointment.FirstTermEnd.Date))
-                {
-                    return BadRequest(CreateErrorResponse400BadRequest($"You cannot create criteria outside of First-Term dates " +
-                                     $"({activeAppointment.FirstTermStart.Date} to {activeAppointment.FirstTermEnd.Date})"));
-                }
-            }
-            else if (model.Term == "Second-Term")
-            {
-                if (!(currentDateTime.Date >= activeAppointment.SecondTermStart.Date && currentDateTime.Date <= activeAppointment.SecondTermEnd.Date))
-                {
-                    return BadRequest(CreateErrorResponse400BadRequest($"You cannot create criteria outside of Second-Term dates " +
-                                     $"({activeAppointment.SecondTermStart.Date} to {activeAppointment.SecondTermEnd.Date})"));
-                }
-            }
-
             existingCriteria.Name = model.Name.Trim();
             existingCriteria.Description = model.Description.Trim();
             existingCriteria.MaxGrade = model.MaxGrade;

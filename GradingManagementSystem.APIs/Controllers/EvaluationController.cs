@@ -23,7 +23,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished
+        // Finished / Reviewed / Tested
         [HttpGet("AllTeamsForDoctorSupervisionEvaluation")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorSupervisionEvaluation()
@@ -43,73 +43,83 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = doctor.Id;
 
-            // Fetch teams supervised by the doctor
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
+
+            var supervisorScheduleIds = await _dbContext.CommitteeDoctorSchedules
+                .Where(cds => cds.DoctorId == evaluatorId && cds.DoctorRole == "Supervisor")
+                .Select(cds => cds.ScheduleId)
+                .ToListAsync();
+
             var supervisedTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.SupervisorId == evaluatorId && t.HasProject && t.Schedules.Any())
+                .Where(t => t.SupervisorId == evaluatorId && t.HasProject && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id) && t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
                 .AsNoTracking()
                 .ToListAsync();
 
             if (supervisedTeams == null || !supervisedTeams.Any())
                 return NotFound(new ApiResponse(404, "No teams found for Doctor evaluation as supervisor.", new { IsSuccess = false }));
 
-            var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
-            if (academicAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
-            // Fetch active criteria for the specialties of the supervised teams
             var teamSpecialties = supervisedTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Supervisor" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == academicAppointment.Id)
+                .Where(c => c.IsActive && c.Evaluator == "Supervisor" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
             if (activeCriterias == null || !activeCriterias.Any())
                 return NotFound(new ApiResponse(404, "No active criteria found for the specialties of supervised teams.", new { IsSuccess = false }));
 
-            var supervisionTeamsWithCriterias = supervisedTeams.Select(t => new TeamWithCriteriaDto
+            var TeamsWithCriteriaBySpecialtyGroup = teamSpecialties.Select(specialty => new TeamsWithCriteriaBySpecialtyGroupDto
             {
-                TeamId = t.Id,
-                TeamName = t.Name,
-                ProjectId = t.FinalProjectIdea.ProjectId,
-                ProjectName = t.FinalProjectIdea.ProjectName,
-                ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                Specialty = specialty,
                 Criterias = activeCriterias
-                    .Where(c => c.Specialty == t.Specialty)
-                    .Select(c => new CriteriaDto
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Description = c.Description,
-                        MaxGrade = c.MaxGrade,
-                        Evaluator = c.Evaluator,
-                        GivenTo = c.GivenTo,
-                        Specialty = c.Specialty,
-                        Year = c.Year,
-                        Term = c.Term,
-                        CreatedAt = c.CreatedAt,
-                    }).ToList(),
-                TeamMembers = t.Students.Select(s => new TeamMemberDto
-                {
-                    Id = s.Id,
-                    FullName = s.FullName,
-                    Email = s.AppUser.Email,
-                    Specialty = s.Specialty,
-                    InTeam = s.InTeam,
-                    ProfilePicture = s.AppUser.ProfilePicture,
-                }).ToList()
+                            .Where(c => c.Specialty == specialty && c.IsActive)
+                            .Select(c => new CriteriaDto
+                            {
+                                Id = c.Id,
+                                Name = c.Name,
+                                Description = c.Description,
+                                MaxGrade = c.MaxGrade,
+                                Evaluator = c.Evaluator,
+                                GivenTo = c.GivenTo,
+                                Specialty = c.Specialty,
+                                Year = c.Year,
+                                Term = c.Term,
+                                CreatedAt = c.CreatedAt,
+                            }).ToList(),
+                Teams = supervisedTeams
+                        .Where(t => t.Specialty == specialty)
+                        .Select(t => new TeamWithCriteriaDto
+                        {
+                            TeamId = t.Id,
+                            TeamName = t.Name,
+                            ProjectId = t.FinalProjectIdea.ProjectId,
+                            ProjectName = t.FinalProjectIdea.ProjectName,
+                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
+                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
+                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                            TeamMembers = t.Students.Select(s => new TeamMemberDto
+                            {
+                                Id = s.Id,
+                                FullName = s.FullName,
+                                Email = s.AppUser.Email,
+                                Specialty = s.Specialty,
+                                InTeam = s.InTeam,
+                                ProfilePicture = s.AppUser.ProfilePicture,
+                            }).ToList()
+                        }).ToList()
             }).ToList();
 
-            return Ok(new ApiResponse(200, "Supervision teams retrieved successfully.", new { IsSuccess = true, supervisionTeamsWithCriterias }));
+            return Ok(new ApiResponse(200, "Supervision teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished
+        // Finished / Reviewed / Tested
         [HttpGet("AllTeamsForDoctorExaminationEvaluation")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorExaminationEvaluation()
@@ -129,7 +139,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = doctor.Id;
 
-            // Fetch teams where the doctor is part of the examination committee
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
+
             var examinerScheduleIds = await _dbContext.CommitteeDoctorSchedules
                 .Where(cds => cds.DoctorId == evaluatorId && cds.DoctorRole == "Examiner")
                 .Select(cds => cds.ScheduleId)
@@ -140,67 +153,68 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.Schedules.Any(s => examinerScheduleIds.Contains(s.Id)))
+                .Where(t => t.Schedules.Any(s => examinerScheduleIds.Contains(s.Id)) && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
             if (examinationTeams == null || !examinationTeams.Any())
-                return NotFound(new ApiResponse(404, "No teams found for Doctor evaluation as examiner.", new { IsSuccess = false }));
+                return NotFound(new ApiResponse(404, "No teams found for Doctor evaluation as examiner.", new { IsSuccess = false }));            
 
-            var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
-            if (academicAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
-
-            // Fetch active criteria for the specialties of the examination teams
             var teamSpecialties = examinationTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Examiner" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == academicAppointment.Id)
+                .Where(c => c.IsActive && c.Evaluator == "Examiner" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
             if (activeCriterias == null || !activeCriterias.Any())
                 return NotFound(new ApiResponse(404, "No active criteria found for the specialties of examination teams.", new { IsSuccess = false }));
 
-            var examinationTeamsWithCriterias = examinationTeams.Select(t => new TeamWithCriteriaDto
+            var TeamsWithCriteriaBySpecialtyGroup = teamSpecialties.Select(specialty => new TeamsWithCriteriaBySpecialtyGroupDto
             {
-                TeamId = t.Id,
-                TeamName = t.Name,
-                ProjectId = t.FinalProjectIdea.ProjectId,
-                ProjectName = t.FinalProjectIdea.ProjectName,
-                ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                Specialty = specialty,
                 Criterias = activeCriterias
-                    .Where(c => c.Specialty == t.Specialty)
-                    .Select(c => new CriteriaDto
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Description = c.Description,
-                        MaxGrade = c.MaxGrade,
-                        Evaluator = c.Evaluator,
-                        GivenTo = c.GivenTo,
-                        Specialty = c.Specialty,
-                        Year = c.Year,
-                        Term = c.Term,
-                        CreatedAt = c.CreatedAt,
-                    }).ToList(),
-                TeamMembers = t.Students.Select(s => new TeamMemberDto
-                {
-                    Id = s.Id,
-                    FullName = s.FullName,
-                    Email = s.AppUser.Email,
-                    Specialty = s.Specialty,
-                    InTeam = s.InTeam,
-                    ProfilePicture = s.AppUser.ProfilePicture,
-                }).ToList()
+                            .Where(c => c.Specialty == specialty && c.IsActive)
+                            .Select(c => new CriteriaDto
+                            {
+                                Id = c.Id,
+                                Name = c.Name,
+                                Description = c.Description,
+                                MaxGrade = c.MaxGrade,
+                                Evaluator = c.Evaluator,
+                                GivenTo = c.GivenTo,
+                                Specialty = c.Specialty,
+                                Year = c.Year,
+                                Term = c.Term,
+                                CreatedAt = c.CreatedAt,
+                            }).ToList(),
+                Teams = examinationTeams
+                        .Where(t => t.Specialty == specialty)
+                        .Select(t => new TeamWithCriteriaDto
+                        {
+                            TeamId = t.Id,
+                            TeamName = t.Name,
+                            ProjectId = t.FinalProjectIdea.ProjectId,
+                            ProjectName = t.FinalProjectIdea.ProjectName,
+                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
+                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
+                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                            TeamMembers = t.Students.Select(s => new TeamMemberDto
+                            {
+                                Id = s.Id,
+                                FullName = s.FullName,
+                                Email = s.AppUser.Email,
+                                Specialty = s.Specialty,
+                                InTeam = s.InTeam,
+                                ProfilePicture = s.AppUser.ProfilePicture,
+                            }).ToList()
+                        }).ToList()
             }).ToList();
 
-            return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, examinationTeamsWithCriterias }));
+            return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished /
+        // Finished / Reviewed / Tested
         [HttpGet("AllTeamsForAdminEvaluation")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllTeamsForAdminEvaluation()
@@ -220,49 +234,42 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = admin.Id;
 
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
+
+            var examinerScheduleIds = await _dbContext.CommitteeDoctorSchedules
+                .Select(cds => cds.ScheduleId)
+                .ToListAsync();
+
             var adminTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.HasProject && t.Schedules.Any())
+                .Where(t => t.HasProject && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
             if (adminTeams == null || !adminTeams.Any())
                 return NotFound(new ApiResponse(404, "No teams found for Admin evaluation.", new { IsSuccess = false }));
 
-            var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
-            if (academicAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
             // Fetch active criteria for admin evaluation
             var teamSpecialties = adminTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Admin" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == academicAppointment.Id)
+                .Where(c => c.IsActive && c.Evaluator == "Admin" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
             if (activeCriterias == null || !activeCriterias.Any())
                 return NotFound(new ApiResponse(404, "No active criteria found for the specialties of admin teams.", new { IsSuccess = false }));
 
-            var adminTeamsWithCriterias = adminTeams
-                .GroupBy(t => t.Specialty)
-                .Select(group => new TeamUnderSpecialtyForEvaluationDto
-                {
-                    Specialty = group.Key,
-                    Teams = group.Select(t => new TeamWithCriteriaDto
-                    {
-                        TeamId = t.Id,
-                        TeamName = t.Name,
-                        ProjectId = t.FinalProjectIdea.ProjectId,
-                        ProjectName = t.FinalProjectIdea.ProjectName,
-                        ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                        ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                        ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                        ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
-                        Criterias = activeCriterias
-                            .Where(c => c.Specialty == t.Specialty)
+            var TeamsWithCriteriaBySpecialtyGroup = teamSpecialties.Select(specialty => new TeamsWithCriteriaBySpecialtyGroupDto
+            {
+                Specialty = specialty,
+                Criterias = activeCriterias
+                            .Where(c => c.Specialty == specialty && c.IsActive)
                             .Select(c => new CriteriaDto
                             {
                                 Id = c.Id,
@@ -276,27 +283,39 @@ namespace GradingManagementSystem.APIs.Controllers
                                 Term = c.Term,
                                 CreatedAt = c.CreatedAt,
                             }).ToList(),
-                        TeamMembers = t.Students.Select(s => new TeamMemberDto
+                Teams = adminTeams
+                        .Where(t => t.Specialty == specialty)
+                        .Select(t => new TeamWithCriteriaDto
                         {
-                            Id = s.Id,
-                            FullName = s.FullName,
-                            Email = s.AppUser.Email,
-                            Specialty = s.Specialty,
-                            InTeam = s.InTeam,
-                            ProfilePicture = s.AppUser.ProfilePicture,
+                            TeamId = t.Id,
+                            TeamName = t.Name,
+                            ProjectId = t.FinalProjectIdea.ProjectId,
+                            ProjectName = t.FinalProjectIdea.ProjectName,
+                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
+                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
+                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
+                            TeamMembers = t.Students.Select(s => new TeamMemberDto
+                            {
+                                Id = s.Id,
+                                FullName = s.FullName,
+                                Email = s.AppUser.Email,
+                                Specialty = s.Specialty,
+                                InTeam = s.InTeam,
+                                ProfilePicture = s.AppUser.ProfilePicture,
+                            }).ToList()
                         }).ToList()
-                    }).ToList()
-                }).ToList();
+            }).ToList();
 
-            return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, adminTeamsWithCriterias }));
+            return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished /
+        // Finished / 
         [HttpPost("SubmitGrades")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> SubmitGrades([FromBody] SubmitEvaluationDto model)
         {
-            if (model is null)
+            if (model == null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
             var appUserId = User.FindFirst("UserId")?.Value;
@@ -331,33 +350,25 @@ namespace GradingManagementSystem.APIs.Controllers
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
-                var isSupervisor = schedule.TeamId == model.TeamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor");
+                var isSupervisor = schedule.TeamId == model.TeamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == doctor.Id);
                 var isExaminer = schedule.TeamId == model.TeamId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner");
 
                 if (isSupervisor)
-                {
                     evaluatorRole = "Supervisor";
-                }
                 else if (isExaminer)
-                {
                     evaluatorRole = "Examiner";
-                }
                 else
-                {
                     return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false }));
-                }
 
                 evaluatorId = doctor.Id;
             }
 
-            // Check if evaluations already exist for the team
             var existingEvaluations = await _dbContext.Evaluations
                 .Where(e => e.TeamId == model.TeamId && e.ScheduleId == model.ScheduleId && e.EvaluatorId == evaluatorId && e.EvaluatorRole == evaluatorRole)
                 .ToListAsync();
 
             if (existingEvaluations.Any())
             {
-                // Update existing evaluations
                 foreach (var evaluation in existingEvaluations)
                 {
                     var gradeItem = model.Grades.FirstOrDefault(g => g.CriteriaId == evaluation.CriteriaId);
@@ -375,7 +386,6 @@ namespace GradingManagementSystem.APIs.Controllers
             }
             else
             {
-                // Create new evaluations
                 foreach (var studentId in model.StudentIds)
                 {
                     foreach (var gradeItem in model.Grades)

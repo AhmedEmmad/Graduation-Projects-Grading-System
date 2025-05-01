@@ -51,12 +51,6 @@ namespace GradingManagementSystem.Repository
                 EnrollmentDate = doctorUser.Doctor.EnrollmentDate,
                 ProfilePicture = doctorUser.ProfilePicture,
                 CurrentAcademicYear = currentAppointment?.Year,
-                Teams = doctorUser.Doctor.Teams.Select(t => new TeammDto
-                {
-                    TeamId = t.Id,
-                    TeamName = t.Name,
-                    TeamLeaderId = t.LeaderId,
-                }).ToHashSet()
             };
         }
 

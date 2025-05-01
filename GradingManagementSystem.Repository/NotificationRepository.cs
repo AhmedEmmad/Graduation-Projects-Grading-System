@@ -20,48 +20,45 @@ namespace GradingManagementSystem.Repository
             if (role == null)
                 return Enumerable.Empty<NotificationResponseDto>();
 
-            else if (!Enum.TryParse(role, ignoreCase: true, out NotificationRole parsedRole))
-                return Enumerable.Empty<NotificationResponseDto>();
-
             else if (role.Equals("All", StringComparison.OrdinalIgnoreCase))
             {
-                var notifications = await _dbContext.Notifications.Where(N => N.Role == NotificationRole.All).ToListAsync();
+                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
                 {
                     Id = notification.Id,
                     Title = notification.Title,
                     Description = notification.Description,
-                    Role = notification.Role.ToString(),
+                    Role = notification.Role,
                     IsRead = notification.IsRead,
-                    CreatedAt = notification.CreatedAt,
+                    SentAt = notification.SentAt,
                     AdminId = notification.AdminId
                 });
             }
             else if (role.Equals("Students", StringComparison.OrdinalIgnoreCase))
             {
-                var notifications = await _dbContext.Notifications.Where(N => N.Role == NotificationRole.Students && N.Role == NotificationRole.All).ToListAsync();
+                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Students.ToString() && n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
                 {
                     Id = notification.Id,
                     Title = notification.Title,
                     Description = notification.Description,
-                    Role = notification.Role.ToString(),
+                    Role = notification.Role,
                     IsRead = notification.IsRead,
-                    CreatedAt = notification.CreatedAt,
+                    SentAt = notification.SentAt,
                     AdminId = notification.AdminId
                 });
             }
             else 
             {
-                var notifications = await _dbContext.Notifications.Where(N => N.Role == NotificationRole.Doctors && N.Role == NotificationRole.All).ToListAsync();
+                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Doctors.ToString() && n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
                 {
                     Id = notification.Id,
                     Title = notification.Title,
                     Description = notification.Description,
-                    Role = notification.Role.ToString(),
+                    Role = notification.Role,
                     IsRead = notification.IsRead,
-                    CreatedAt = notification.CreatedAt,
+                    SentAt = notification.SentAt,
                     AdminId = notification.AdminId
                 });
             }

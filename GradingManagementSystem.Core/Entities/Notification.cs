@@ -4,8 +4,8 @@
     {
         public string Title { get; set; }
         public string Description { get; set; }
-        public NotificationRole Role { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string Role { get; set; }
+        public DateTime SentAt { get; set; } = DateTime.Now;
         public bool IsRead { get; set; } = false;
         
         public int? AdminId { get; set; } // Foreign Key Of Id In Admin Table

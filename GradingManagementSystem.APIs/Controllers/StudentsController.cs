@@ -19,7 +19,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested 
         [HttpGet("StudentsWithoutTeams")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllStudentsWithoutTeams()

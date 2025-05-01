@@ -12,6 +12,5 @@ namespace GradingManagementSystem.Core.DTOs
         public DateTime EnrollmentDate { get; set; }
         public string? CurrentAcademicYear { get; set; }
         public string? CurrentAcademicSemester { get; set; }
-        public IEnumerable<TeammDto> Teams { get; set; }
     }
 }

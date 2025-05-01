@@ -26,116 +26,114 @@ namespace GradingManagementSystem.APIs.Controllers
             _hubContext = hubContext;
             _notificationRepository = notificationRepository;
         }
-
+        
+        // Finished / Reviewed / Tested
         [HttpPost("SendNotification")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SendNotification([FromBody] NotificationDto model)
         {
-            if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data."));
+            if (model == null || string.IsNullOrWhiteSpace(model.Title) || string.IsNullOrWhiteSpace(model.Description) || string.IsNullOrWhiteSpace(model.Role))
+                return BadRequest(new ApiResponse(400, "Title, Description, And Role are required.", new { IsSuccess = false }));
 
-            var adminId = User.FindFirst("UserId")?.Value;
-            
-            if(adminId == null)
-                return BadRequest(new ApiResponse(400, "Invalid admin id."));
+            if (model.Role != NotificationRole.All.ToString() ||
+                model.Role != NotificationRole.Doctors.ToString() ||
+                model.Role != NotificationRole.Students.ToString())
+                return BadRequest(new ApiResponse(400, "Invalid Role, Please select Role as 'All', 'Doctors', or 'Students'.", new { IsSuccess = false }));
 
-            var admin = await _unitOfWork.Repository<Admin>().FindAsync(A => A.AppUserId == adminId);
+            var adminAppUserId = User.FindFirst("UserId")?.Value;
+            if (adminAppUserId == null)
+                return BadRequest(new ApiResponse(400, "Invalid admin id.", new { IsSuccess = false }));
 
+            var admin = await _unitOfWork.Repository<Admin>().FindAsync(A => A.AppUserId == adminAppUserId);
             if (admin == null)
-                return NotFound(new ApiResponse(404, "Admin not found."));
-
-            if(!Enum.TryParse(model.Role, out NotificationRole role))
-                return BadRequest(new ApiResponse(400, "Invalid role."));
-
-            var notification = new Notification
+                return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
+            
+            var newNotification = new Notification
             {
                 Title = model.Title,
                 Description = model.Description,
-                Role = role,
+                Role = model.Role == "All" ? NotificationRole.All.ToString() 
+                                           : model.Role == "Doctors" ? NotificationRole.Doctors.ToString() 
+                                           : NotificationRole.Students.ToString(),
                 AdminId = admin.Id
             };
 
-            await _unitOfWork.Repository<Notification>().AddAsync(notification);
+            await _unitOfWork.Repository<Notification>().AddAsync(newNotification);
             await _unitOfWork.CompleteAsync();
 
-            await _hubContext.Clients.Group(model.Role).SendAsync("ReceiveNotification", notification.Title, notification.Description, role.ToString());
-            
-            return Ok(new ApiResponse(200, "Notification sent successfully!", new
-            {
-                Title = notification.Title,
-                Description = notification.Description,
-                Role = role.ToString(),
-                CreatedAt = notification.CreatedAt,
-                IsRead = notification?.IsRead,
-                AdminId = admin.Id,
+            await _hubContext.Clients.Group(model.Role).SendAsync("ReceiveNotification", newNotification.Title, newNotification.Description, newNotification.Role);
 
-            }));
+            return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
         }
-
-        [HttpGet("GetAllNotifications")]
+        
+        // Finished / Reviewed / Tested
+        [HttpGet("All")]
         [Authorize(Roles = "Admin, Doctor, Student")]
         public async Task<IActionResult> GetAllNotifications()
         {
             var notifications = await _notificationRepository.GetNotificationsByRoleAsync("All");
-
             if (notifications == null || !notifications.Any())
-                return NotFound(new ApiResponse(404, "No notifications found."));
+                return NotFound(new ApiResponse(404, "No notifications found.", new { IsSuccess = false }));
 
-            return Ok(new ApiResponse(200, "Notifications retrieved successfully.", notifications));
+            return Ok(new ApiResponse(200, "Notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
-        [HttpGet("GetStudentNotifications")]
+        // Finished / Reviewed / Tested
+        [HttpGet("StudentNotifications")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentNotifications()
         {
             var studentNotifications = await _notificationRepository.GetNotificationsByRoleAsync("Students");
-
             if (studentNotifications == null || !studentNotifications.Any())
-                return NotFound(new ApiResponse(404, "No notifications found for students."));
+                return NotFound(new ApiResponse(404, "No notifications found for students.", new { IsSuccess = false }));
 
-            return Ok(new ApiResponse(200, "Student notifications retrieved successfully.", studentNotifications));
+            return Ok(new ApiResponse(200, "Student notifications retrieved successfully.", new { IsSuccess = true, studentNotifications }));
         }
 
-        [HttpGet("GetDoctorNotifications")]
+        // Finished / Reviewed / Tested
+        [HttpGet("DoctorNotifications")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetDoctorNotifications()
         {
             var doctorNotifications = await _notificationRepository.GetNotificationsByRoleAsync("Doctors");
-
             if (doctorNotifications == null || !doctorNotifications.Any())
-                return NotFound(new ApiResponse(404, "No notifications found for doctors."));
+                return NotFound(new ApiResponse(404, "No notifications found for doctors.", new { IsSuccess = false }));
 
-            return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", doctorNotifications));
+            return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", new { IsSuccess = true, doctorNotifications }));
         }
 
-        [HttpPut("MarkAsRead/{id}")]
-        public async Task<IActionResult> MarkAsRead(int id)
+        // Finished / Reviewed / Tested
+        [HttpPut("MarkAsRead/{notificationId}")]
+        [Authorize(Roles = "Doctor, Student")]
+        public async Task<IActionResult> MarkAsRead(int notificationId)
         {
-            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(id);
+            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(notificationId);
             if (notification == null)
-                return NotFound(new ApiResponse(404, "Notification not found."));
+                return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 
             if (notification.IsRead)
-                return BadRequest(new ApiResponse(400, "Notification is already marked as read."));
+                return BadRequest(new ApiResponse(400, "Notification is already marked as read.", new { IsSuccess = false }));
 
             notification.IsRead = true;
             _unitOfWork.Repository<Notification>().Update(notification);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, "Notification marked as read successfully."));
+            return Ok(new ApiResponse(200, "Notification marked as read successfully.", new { IsSuccess = true }));
         }
 
-        [HttpDelete("DeleteNotification/{id}")]
-        public async Task<IActionResult> DeleteNotification(int id)
+        // Finished / Reviewed / Tested
+        [HttpDelete("Delete/{notificationId}")]
+        [Authorize(Roles = "Doctor, Student")]
+        public async Task<IActionResult> DeleteNotification(int notificationId)
         {
-            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(id);
+            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(notificationId);
             if (notification == null)
-                return NotFound(new ApiResponse(404, "Notification not found."));
+                return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 
             _unitOfWork.Repository<Notification>().Delete(notification);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, "Notification deleted successfully."));
+            return Ok(new ApiResponse(200, "Notification deleted successfully.", new { IsSuccess = true }));
         }
     }
 }

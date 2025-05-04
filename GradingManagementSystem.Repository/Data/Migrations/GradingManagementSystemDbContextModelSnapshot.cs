@@ -34,7 +34,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("SchedulesId");
 
-                    b.ToTable("CriteriaSchedule");
+                    b.ToTable("CriteriaSchedule", (string)null);
                 });
 
             modelBuilder.Entity("CriteriaTeam", b =>
@@ -49,7 +49,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamsId");
 
-                    b.ToTable("CriteriaTeam");
+                    b.ToTable("CriteriaTeam", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.AcademicAppointment", b =>
@@ -88,7 +88,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("AcademicAppointments");
+                    b.ToTable("AcademicAppointments", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Admin", b =>
@@ -122,7 +122,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Admins");
+                    b.ToTable("Admins", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.CommitteeDoctorSchedule", b =>
@@ -152,7 +152,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("ScheduleId");
 
-                    b.ToTable("CommitteeDoctorSchedules");
+                    b.ToTable("CommitteeDoctorSchedules", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
@@ -210,7 +210,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("AcademicAppointmentId");
 
-                    b.ToTable("Criterias");
+                    b.ToTable("Criterias", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
@@ -236,7 +236,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("ScheduleId");
 
-                    b.ToTable("CriteriaSchedules");
+                    b.ToTable("CriteriaSchedules", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -270,7 +270,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Doctors");
+                    b.ToTable("Doctors", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.DoctorProjectIdea", b =>
@@ -306,7 +306,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("Name")
                         .IsUnique();
 
-                    b.ToTable("DoctorProjectIdeas");
+                    b.ToTable("DoctorProjectIdeas", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Evaluation", b =>
@@ -365,7 +365,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Evaluations");
+                    b.ToTable("Evaluations", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.FinalProjectIdea", b =>
@@ -406,7 +406,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamRequestDoctorProjectIdeaId");
 
-                    b.ToTable("FinalProjectIdeas");
+                    b.ToTable("FinalProjectIdeas", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Identity.AppUser", b =>
@@ -519,7 +519,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Invitations");
+                    b.ToTable("Invitations", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Notification", b =>
@@ -598,7 +598,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Schedules");
+                    b.ToTable("Schedules", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Student", b =>
@@ -645,7 +645,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Students");
+                    b.ToTable("Students", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.TaskItem", b =>
@@ -686,7 +686,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("Tasks");
+                    b.ToTable("Tasks", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.TaskMember", b =>
@@ -724,7 +724,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("TaskMembers");
+                    b.ToTable("TaskMembers", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Team", b =>
@@ -761,7 +761,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("SupervisorId");
 
-                    b.ToTable("Teams");
+                    b.ToTable("Teams", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.TeamProjectIdea", b =>
@@ -802,7 +802,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("TeamProjectIdeas");
+                    b.ToTable("TeamProjectIdeas", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.TeamRequestDoctorProjectIdea", b =>
@@ -842,7 +842,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("TeamId");
 
-                    b.ToTable("TeamsRequestDoctorProjectIdeas");
+                    b.ToTable("TeamsRequestDoctorProjectIdeas", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.TemporaryUser", b =>
@@ -882,7 +882,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TemporaryUsers");
+                    b.ToTable("TemporaryUsers", (string)null);
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.UserOtp", b =>
@@ -906,7 +906,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("UserOtps");
+                    b.ToTable("UserOtps", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

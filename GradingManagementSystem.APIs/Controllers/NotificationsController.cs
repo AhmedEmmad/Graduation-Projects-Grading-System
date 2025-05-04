@@ -35,11 +35,6 @@ namespace GradingManagementSystem.APIs.Controllers
             if (model == null || string.IsNullOrWhiteSpace(model.Title) || string.IsNullOrWhiteSpace(model.Description) || string.IsNullOrWhiteSpace(model.Role))
                 return BadRequest(new ApiResponse(400, "Title, Description, And Role are required.", new { IsSuccess = false }));
 
-            if (model.Role != NotificationRole.All.ToString() ||
-                model.Role != NotificationRole.Doctors.ToString() ||
-                model.Role != NotificationRole.Students.ToString())
-                return BadRequest(new ApiResponse(400, "Invalid Role, Please select Role as 'All', 'Doctors', or 'Students'.", new { IsSuccess = false }));
-
             var adminAppUserId = User.FindFirst("UserId")?.Value;
             if (adminAppUserId == null)
                 return BadRequest(new ApiResponse(400, "Invalid admin id.", new { IsSuccess = false }));
@@ -52,9 +47,7 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 Title = model.Title,
                 Description = model.Description,
-                Role = model.Role == "All" ? NotificationRole.All.ToString() 
-                                           : model.Role == "Doctors" ? NotificationRole.Doctors.ToString() 
-                                           : NotificationRole.Students.ToString(),
+                Role = model.Role,
                 AdminId = admin.Id
             };
 

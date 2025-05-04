@@ -9,6 +9,7 @@
         public double Grade { get; set; }
         public DateTime EvaluationDate { get; set; }
         public string EvaluatorRole { get; set; }
+        public int EvaluatorId { get; set; }
         public int? TeamId { get; set; }
         public int? StudentId { get; set; }
     }

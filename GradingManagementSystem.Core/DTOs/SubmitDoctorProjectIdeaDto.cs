@@ -2,12 +2,12 @@
 
 namespace GradingManagementSystem.Core.DTOs
 {
-    public class ProjectIdeaFromDrDto
+    public class SubmitDoctorProjectIdeaDto
     {
-        [Required(ErrorMessage = "Project title is required.")]
+        [Required(ErrorMessage = "Project Title is required.")]
         public string Name { get; set; }
 
-        [Required(ErrorMessage = "Project description is required.")]
+        [Required(ErrorMessage = "Project Description is required.")]
         public string Description { get; set; }
     }
 }

@@ -15,7 +15,7 @@ namespace GradingManagementSystem.Repository
             _dbContext = dbContext;
         }
 
-        public async Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctor(int doctorId)
+        public async Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctorAsync(int doctorId)
         {
             var teams = await _dbContext.Teams.Include(t => t.Students)
                                                 .ThenInclude(s => s.AppUser)

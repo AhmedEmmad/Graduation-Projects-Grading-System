@@ -22,7 +22,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished
+        // Finished / Reviewed / Tested
         [HttpGet("AllDoctorSchedules")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllDoctorSchedules()
@@ -108,7 +108,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Doctor schedules retrieved successfully.", new { IsSuccess = true, DoctorSchedules = schedules }));
         }
 
-        // Finished
+        // Finished /
         [HttpGet("AllStudentSchedules")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllStudentSchedules()

@@ -16,6 +16,5 @@
         public Student Student { get; set; }
         public Team Team { get; set; }
         #endregion
-
     }
 }

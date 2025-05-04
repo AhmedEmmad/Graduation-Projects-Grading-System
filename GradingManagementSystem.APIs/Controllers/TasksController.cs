@@ -27,21 +27,21 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpPost("CreateTask")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> DoctorCreateTaskForStudents([FromForm] TaskCreateDto model)
+        public async Task<IActionResult> DoctorCreateTaskForStudents([FromForm] CreateTaskDto model)
         {
             if (model == null)
-                return BadRequest(new ApiResponse(400, "Invalid input task data.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input task data."));
 
             var supervisor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.Id == model.SupervisorId);
             if (supervisor == null)
-                return NotFound(new ApiResponse(404, "Supervisor not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Supervisor not found."));
 
             var team = await _unitOfWork.Repository<Team>().FindAsync(t => t.Id == model.TeamId);
             if (team == null)
-                return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
             var task = new TaskItem
             {
@@ -105,6 +105,17 @@ namespace GradingManagementSystem.APIs.Controllers
             }
             await _unitOfWork.CompleteAsync();
             return Ok(new ApiResponse(200, "Task reviewed successfully.", new { IsSuccess = true }));
+        }
+
+
+        private static ApiResponse CreateErrorResponse400BadRequest(string message)
+        {
+            return new ApiResponse(400, message, new { IsSuccess = false });
+        }
+
+        private static ApiResponse CreateErrorResponse404NotFound(string message)
+        {
+            return new ApiResponse(404, message, new { IsSuccess = false });
         }
     }
 }

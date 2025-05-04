@@ -5,6 +5,6 @@ namespace GradingManagementSystem.Core.Repositories.Contact
 {
     public interface ITeamRepository : IGenericRepository<Team>
     {
-        Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctor(int doctorId);
+        Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctorAsync(int doctorId);
     }
 }

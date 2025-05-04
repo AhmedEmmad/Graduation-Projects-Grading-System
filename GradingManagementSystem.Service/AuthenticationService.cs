@@ -170,7 +170,7 @@ namespace GradingManagementSystem.Service
             var userResult = await _signInManager.CheckPasswordSignInAsync(user, model.Password, false);
 
             if (!userResult.Succeeded)
-                return new ApiResponse(401, "Incorrect password.", new { IsSuccess = false });
+                return new ApiResponse(401, "Incorrect email or password.", new { IsSuccess = false });
 
             var token = await _tokenService.CreateTokenAsync(user);
             

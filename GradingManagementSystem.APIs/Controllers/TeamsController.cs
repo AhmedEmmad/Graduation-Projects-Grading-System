@@ -46,23 +46,23 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams with projects have been successfully retrieved.", new { IsSuccess = true, Teams = result }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpGet("TeamWithMembers/{teamId}")]
-        [Authorize(Roles = "Student, Doctor")]
+        [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetTeamWithMembersById(int teamId)
         {
             if (teamId <= 0)
-                return BadRequest(new ApiResponse(400, "TeamId must be positive number.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
 
-            var team = await _dbContext.Teams.Include(T => T.Students).FirstOrDefaultAsync(T => T.Id == teamId);
+            var team = await _dbContext.Teams.Include(t => t.Students).ThenInclude(s => s.AppUser).FirstOrDefaultAsync(T => T.Id == teamId);
             if (team == null)
-                return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
-            var teamMembers = await _dbContext.Students.Include(S => S.AppUser).Where(S => S.TeamId == teamId).ToListAsync();
+            var teamMembers = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == teamId).ToListAsync();
             if (teamMembers == null || !teamMembers.Any())
-                return NotFound(new ApiResponse(404, "No members found for this team.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No team members found for this team."));
 
-            var result = new TeamWithMembersDto
+            var teamWithMembers = new TeamWithMembersDto
             {
                 Id = team.Id,
                 Name = team.Name,
@@ -80,7 +80,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 }).ToList()
             };
 
-            return Ok(new ApiResponse(200, "Team found.", new { IsSuccess = true, Team = result }));
+            return Ok(new ApiResponse(200, "Team and team members found.", new { IsSuccess = true, Team = teamWithMembers }));
         }
 
         // Finished / Tested
@@ -118,6 +118,7 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 Name = model.TeamName,
                 LeaderId = student.Id,
+                Specialty = student.Specialty,
             };
 
             try
@@ -140,26 +141,22 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Team {teamCreated.Name} is created successfully, You're leader of this team.", new { IsSuccess = true }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpGet("DoctorTeams")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> GetTeamsForDoctor()
+        public async Task<IActionResult> GetAllTeamsForDoctorThatSupervisionOnThem()
         {
             var doctorAppUserId = User.FindFirst("UserId")?.Value;
-
             if (doctorAppUserId == null)
-                return BadRequest(new ApiResponse(400, "DoctorId is required.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
             var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.AppUserId == doctorAppUserId);
-
             if (doctor == null)
-                return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
-            var doctorId = doctor.Id;
-            var TeamsList = await _teamRepository.GetAllTeamsForDoctor(doctorId);
-
+            var TeamsList = await _teamRepository.GetAllTeamsForDoctorAsync(doctor.Id);
             if (TeamsList == null || !TeamsList.Any())
-                return NotFound(new ApiResponse(404, "No teams found for his doctor.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No teams found for his doctor."));
 
             return Ok(new ApiResponse(200, "Teams retrieved successfully.", new { IsSuccess = true, Teams = TeamsList }));
         }
@@ -326,6 +323,17 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork.Repository<Invitation>().Update(invitation);
             await _unitOfWork.CompleteAsync();
             return Ok(new ApiResponse(200, $"Invitation {model.newStatus.ToLower()} successfully.", new { IsSuccess = true }));
+        }
+
+
+        private static ApiResponse CreateErrorResponse400BadRequest(string message)
+        {
+            return new ApiResponse(400, message, new { IsSuccess = false });
+        }
+
+        private static ApiResponse CreateErrorResponse404NotFound(string message)
+        {
+            return new ApiResponse(404, message, new { IsSuccess = false });
         }
     }
 }

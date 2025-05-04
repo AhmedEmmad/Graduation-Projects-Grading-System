@@ -9,7 +9,7 @@ namespace GradingManagementSystem.Core.Entities
         public int EvaluatorId { get; set; } // DoctorId or AdminId
         public string EvaluatorRole { get; set; } // "Admin", "Supervisor", or "Examiner"
         public int? StudentId { get; set; }
-        public int? TeamId { get; set; }
+        public int TeamId { get; set; }
         public double Grade { get; set; }
         public bool AdminEvaluation { get; set; } = false;
         public DateTime EvaluationDate { get; set; } = DateTime.Now;

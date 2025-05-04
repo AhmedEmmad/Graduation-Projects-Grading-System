@@ -25,25 +25,25 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpPost("SubmitDoctorProjectIdea")]
         [Authorize(Roles = "Doctor")]
-        public async Task<IActionResult> SubmitDoctorProjectIdea([FromBody] ProjectIdeaFromDrDto model)
+        public async Task<IActionResult> SubmitDoctorProjectIdea([FromBody] SubmitDoctorProjectIdeaDto model)
         {
-            if (model == null)
-                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+            if (model == null || string.IsNullOrEmpty(model.Name) || string.IsNullOrEmpty(model.Description))
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
 
             var doctorAppUserId = User.FindFirst("UserId")?.Value;
             if (doctorAppUserId == null)
-                return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
             var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.AppUserId == doctorAppUserId);
             if (doctor == null)
-                return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
             var doctorIdeaExists = await _unitOfWork.Repository<DoctorProjectIdea>().FindAsync(p => p.Name == model.Name);
             if (doctorIdeaExists != null)
-                return BadRequest(new ApiResponse(400, "Project idea with this name already exists, Please enter other project name.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Project idea with this name already exists, Please enter other project name."));
 
             var newDoctorProjectIdea = new DoctorProjectIdea
             {
@@ -402,16 +402,19 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Final project ideas retrieved successfully.", new { IsSuccess = true, finalProjectIdeas }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpGet("FinalProjectIdea/{teamId}")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetFinalProjectIdeaById(int teamId)
         {
+            if (teamId <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
+
             var finalProjectIdea = await _dbContext.FinalProjectIdeas.Include(f => f.Team)
                                                                      .Include(f => f.Supervisor)
                                                                      .FirstOrDefaultAsync(f => f.TeamId == teamId);
             if (finalProjectIdea == null)
-                return NotFound(new ApiResponse(404, "Final project idea not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Final project idea not found."));
 
             var projectIdea = new FinalProjectIdeaDto
             {
@@ -422,13 +425,20 @@ namespace GradingManagementSystem.APIs.Controllers
                 TeamName = finalProjectIdea?.Team?.Name,
                 SupervisorId = finalProjectIdea?.SupervisorId,
                 SupervisorName = finalProjectIdea?.Supervisor?.FullName,
-                PostedBy = finalProjectIdea.PostedBy
+                PostedBy = finalProjectIdea?.PostedBy
             };
-            return Ok(new ApiResponse(200, "Final project idea retrieved successfully.", new
-            {
-                IsSuccess = true,
-                projectIdea
-            }));
+            return Ok(new ApiResponse(200, "Final project idea retrieved successfully.", new { IsSuccess = true, projectIdea }));
+        }
+
+
+        private static ApiResponse CreateErrorResponse400BadRequest(string message)
+        {
+            return new ApiResponse(400, message, new { IsSuccess = false });
+        }
+
+        private static ApiResponse CreateErrorResponse404NotFound(string message)
+        {
+            return new ApiResponse(404, message, new { IsSuccess = false });
         }
     }
 }

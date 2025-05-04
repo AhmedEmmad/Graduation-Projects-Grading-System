@@ -2,7 +2,7 @@
 
 namespace GradingManagementSystem.Core.DTOs
 {
-    public class TaskCreateDto
+    public class CreateTaskDto
     {
         [Required(ErrorMessage = "Task name is required")]
         public string Name { get; set; }

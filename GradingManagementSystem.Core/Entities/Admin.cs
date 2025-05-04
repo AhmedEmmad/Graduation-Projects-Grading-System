@@ -14,6 +14,7 @@ namespace GradingManagementSystem.Core.Entities
         #region Navigation Properties
         public AppUser AppUser { get; set; }
         public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+        public ICollection<Evaluation> Evaluations { get; set; }
         #endregion
     }
 }

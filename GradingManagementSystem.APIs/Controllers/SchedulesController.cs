@@ -2,6 +2,7 @@
 using GradingManagementSystem.Core.CustomResponses;
 using GradingManagementSystem.Core.DTOs;
 using GradingManagementSystem.Core.Entities;
+using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,14 +28,13 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllDoctorSchedules()
         {
-            var doctorAppUserId = User.FindFirst("Id")?.Value;
+            var doctorAppUserId = User.FindFirst("UserId")?.Value;
             if (doctorAppUserId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
             var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.AppUserId == doctorAppUserId);
             if (doctor == null)
-                return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
-
+                return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
             var doctorSchedules = await _dbContext.CommitteeDoctorSchedules
                                                 .Include(ds => ds.Schedule)
@@ -53,67 +53,86 @@ namespace GradingManagementSystem.APIs.Controllers
                                                 .ToListAsync();
 
             if (doctorSchedules == null || !doctorSchedules.Any())
-                return NotFound(new ApiResponse(404, "No schedules found for his doctor.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No schedules found for this doctor."));
 
-            // Determine primary role
-            var primaryRole = doctorSchedules.Any(ds => ds.DoctorRole == "Supervisor")
-                ? "Supervisor" : "Examiner";
-
-            // Check if the doctor is a supervisor or examiner
-            var isSupervisor = doctorSchedules.Any(ds => ds.DoctorRole == "Supervisor");
-            var isExaminer = doctorSchedules.Any(ds => ds.DoctorRole == "Examiner");
-            if (!isSupervisor && !isExaminer)
-                return NotFound(new ApiResponse(404, "No schedules found for his doctor.", new { IsSuccess = false }));
-
-            var schedules = doctorSchedules
-        .Where(ds => ds.DoctorRole == primaryRole)
-        .GroupBy(ds => ds.ScheduleId)
-        .Select(group => new DoctorScheduleDto
-        {
-            ScheduleId = group.Key,
-            ScheduleDate = group.First().Schedule.ScheduleDate,
-            Status = group.First().Schedule.Status,
-            TeamId = group.First().Schedule.TeamId,
-            TeamName = group.First().Schedule.Team?.Name ?? "N/A",
-            TeamLeaderId = group.First().Schedule.Team?.LeaderId ?? 0,
-            TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName ?? "N/A",
-            Specialty = group.First().Schedule.Team?.Specialty ?? "N/A",
-            ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId ?? 0,
-            ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName ?? "N/A",
-            ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription ?? "N/A",
-            DoctorRole = primaryRole,
-            PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy ?? "N/A",
-            SupervisorId = group.First().Schedule.Team?.SupervisorId ?? 0,
-            SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName ?? "N/A",
-            TeamMembers = group.First().Schedule.Team?.Students?
-                .Select(s => new TeamMemberDto
+            var supervisionTeams = doctorSchedules
+                .Where(ds => ds.DoctorRole == "Supervisor")
+                .GroupBy(ds => ds.ScheduleId)
+                .Select(group => new DoctorScheduleDto
                 {
-                    Id = s.Id,
-                    FullName = s.FullName ?? "N/A",
-                    Email = s.Email ?? "N/A",
-                    InTeam = s.InTeam,
-                    Specialty = s.Specialty ?? "N/A",
-                    ProfilePicture = s.AppUser?.ProfilePicture ?? "default.jpg"
-                }).ToList() ?? new List<TeamMemberDto>(),
-            Examiners = doctorSchedules.Where(d => d.DoctorRole == "Examiner" && d.ScheduleId == group.Key)
-                                        .Select(d => new ExaminerDto
-                                        {
-                                            ExaminerId = d.DoctorId,
-                                            ExaminerName = d.Doctor?.FullName ?? "N/A"
-                                        })
-                                        .Distinct()
-                                        .ToList()
-        }).ToList();
+                    ScheduleId = group.Key,
+                    ScheduleDate = group.First().Schedule.ScheduleDate,
+                    Status = group.First().Schedule.Status,
+                    TeamId = group.First().Schedule.TeamId,
+                    TeamName = group.First().Schedule.Team?.Name,
+                    TeamLeaderId = group.First().Schedule.Team?.LeaderId,
+                    TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName,
+                    Specialty = group.First().Schedule.Team?.Specialty,
+                    ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
+                    ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
+                    ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
+                    DoctorRole = "Supervisor",
+                    PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
+                    SupervisorId = group.First().Schedule.Team?.SupervisorId,
+                    SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
+                    TeamMembers = group.First().Schedule.Team?.Students?
+                        .Select(s => new TeamMemberDto
+                        {
+                            Id = s.Id,
+                            FullName = s.FullName,
+                            Email = s.Email,
+                            InTeam = s.InTeam,
+                            Specialty = s.Specialty,
+                            ProfilePicture = s.AppUser?.ProfilePicture
+                        }).ToList() ?? new List<TeamMemberDto>()
+                }).ToList();
 
-            return Ok(new ApiResponse(200, "Doctor schedules retrieved successfully.", new { IsSuccess = true, DoctorSchedules = schedules }));
+            var examinationTeams = doctorSchedules
+                .Where(ds => ds.DoctorRole == "Examiner")
+                .GroupBy(ds => ds.ScheduleId)
+                .Select(group => new DoctorScheduleDto
+                {
+                    ScheduleId = group.Key,
+                    ScheduleDate = group.First().Schedule.ScheduleDate,
+                    Status = group.First().Schedule.Status,
+                    TeamId = group.First().Schedule.TeamId,
+                    TeamName = group.First().Schedule.Team?.Name,
+                    TeamLeaderId = group.First().Schedule.Team?.LeaderId,
+                    TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName,
+                    Specialty = group.First().Schedule.Team?.Specialty,
+                    ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
+                    ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
+                    ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
+                    DoctorRole = "Examiner",
+                    PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
+                    SupervisorId = group.First().Schedule.Team?.SupervisorId,
+                    SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
+                    TeamMembers = group.First().Schedule.Team?.Students?
+                        .Select(s => new TeamMemberDto
+                        {
+                            Id = s.Id,
+                            FullName = s.FullName,
+                            Email = s.Email,
+                            InTeam = s.InTeam,
+                            Specialty = s.Specialty,
+                            ProfilePicture = s.AppUser?.ProfilePicture
+                        }).ToList() ?? new List<TeamMemberDto>()
+                }).ToList();
+
+            return Ok(new ApiResponse(200, "Doctor schedules retrieved successfully.", new
+            {
+                IsSuccess = true,
+                supervisionTeams,
+                examinationTeams
+            }));
         }
 
-        // Finished /
+        // Finished / Reviewed / Tested
         [HttpGet("AllStudentSchedules")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllStudentSchedules()
         {
-            var studentId = User.FindFirst("Id")?.Value;
+            var studentId = User.FindFirst("UserId")?.Value;
             if (studentId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
             var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentId);
@@ -138,38 +157,38 @@ namespace GradingManagementSystem.APIs.Controllers
             if (studentSchedules == null || !studentSchedules.Any())
                 return NotFound(new ApiResponse(404, "No schedules found for his student.", new { IsSuccess = false }));
 
-            var schedules = studentSchedules.Select(s => new DoctorScheduleDto
+            var schedules = studentSchedules.Select(s => new StudentScheduleDto
             {
                 ScheduleId = s.Id,
                 TeamId = s.TeamId,
-                TeamName = s.Team?.Name ?? "N/A",
-                ProjectName = s.Team?.FinalProjectIdea?.ProjectName ?? "N/A",
-                ProjectDescription = s.Team?.FinalProjectIdea?.ProjectDescription ?? "N/A",
+                TeamName = s.Team?.Name,
+                ProjectName = s.Team?.FinalProjectIdea?.ProjectName,
+                ProjectDescription = s.Team?.FinalProjectIdea?.ProjectDescription,
                 ScheduleDate = s.ScheduleDate,
                 Status = s.Status,
-                SupervisorName = s.Team?.Supervisor?.FullName ?? "N/A",
-                PostedBy = s.Team?.FinalProjectIdea?.PostedBy ?? "N/A",
+                SupervisorName = s.Team?.Supervisor?.FullName,
+                PostedBy = s.Team?.FinalProjectIdea?.PostedBy,
                 TeamMembers = s.Team?.Students?.Select(st => new TeamMemberDto
                                                 {
                                                     Id = st.Id,
-                                                    FullName = st.FullName ?? "N/A",
-                                                    Email = st.Email ?? "N/A",
+                                                    FullName = st.FullName,
+                                                    Email = st.Email,
                                                     InTeam = st.InTeam,
-                                                    Specialty = st.Specialty ?? "N/A",
-                                                    ProfilePicture = st.AppUser?.ProfilePicture ?? "default.jpg"
+                                                    Specialty = st.Specialty,
+                                                    ProfilePicture = st.AppUser?.ProfilePicture
                                                 }).ToList() ?? new List<TeamMemberDto>(),
                 Examiners = s.CommitteeDoctorSchedules?.Where(d => d.DoctorRole == "Examiner")
                                                        .Select(d => new ExaminerDto
                                                        {
                                                            ExaminerId = d.DoctorId,
-                                                           ExaminerName = d.Doctor?.FullName ?? "N/A"
+                                                           ExaminerName = d.Doctor.FullName
                                                        }).ToList() ?? new List<ExaminerDto>()
             }).ToList();
 
             return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = schedules }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpPost("CreateSchedule")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleDto model)
@@ -248,6 +267,17 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.CompleteAsync();
 
             return Ok(new ApiResponse(200, $"Schedule created successfully for this team ID: '{team.Id}' with schedule ID: '{newSchedule.Id}'.", new { IsSuccess = true }));
+        }
+
+
+        private static ApiResponse CreateErrorResponse400BadRequest(string message)
+        {
+            return new ApiResponse(400, message, new { IsSuccess = false });
+        }
+
+        private static ApiResponse CreateErrorResponse404NotFound(string message)
+        {
+            return new ApiResponse(404, message, new { IsSuccess = false });
         }
     }
 }

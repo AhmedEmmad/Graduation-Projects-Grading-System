@@ -17,6 +17,7 @@ namespace GradingManagementSystem.APIs.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly IHubContext<NotificationHub> _hubContext;
         private readonly INotificationRepository _notificationRepository;
+        private static readonly string[] ValidRoles = { "Doctors", "Students", "All" };
 
         public NotificationsController(IUnitOfWork unitOfWork,
                                       IHubContext<NotificationHub> hubContext,
@@ -34,6 +35,9 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             if (model == null || string.IsNullOrWhiteSpace(model.Title) || string.IsNullOrWhiteSpace(model.Description) || string.IsNullOrWhiteSpace(model.Role))
                 return BadRequest(new ApiResponse(400, "Title, Description, And Role are required.", new { IsSuccess = false }));
+            
+            if (!ValidRoles.Contains(model.Role, StringComparer.OrdinalIgnoreCase))
+                return BadRequest(new ApiResponse(400, "Invalid Role. Must be 'Doctors', 'Students', or 'All'.", new { IsSuccess = false }));
 
             var adminAppUserId = User.FindFirst("UserId")?.Value;
             if (adminAppUserId == null)
@@ -47,14 +51,15 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 Title = model.Title,
                 Description = model.Description,
-                Role = model.Role,
+                Role = model.Role.Equals("All", StringComparison.OrdinalIgnoreCase) ? "All" :
+                       model.Role.Equals("Doctors", StringComparison.OrdinalIgnoreCase) ? "Doctors" : "Students",
                 AdminId = admin.Id
             };
 
             await _unitOfWork.Repository<Notification>().AddAsync(newNotification);
             await _unitOfWork.CompleteAsync();
 
-            await _hubContext.Clients.Group(model.Role).SendAsync("ReceiveNotification", newNotification.Title, newNotification.Description, newNotification.Role);
+            await _hubContext.Clients.Group(newNotification.Role).SendAsync("ReceiveNotification", newNotification.Title, newNotification.Description, newNotification.Role);
 
             return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
         }

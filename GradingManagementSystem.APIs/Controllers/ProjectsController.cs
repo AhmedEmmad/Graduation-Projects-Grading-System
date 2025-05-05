@@ -210,6 +210,14 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _unitOfWork.CompleteAsync();
 
+            var pendingTeamRequestsForDoctorProjectIdeas = await _dbContext.TeamsRequestDoctorProjectIdeas
+                                                                           .Where(tr => tr.TeamId == team.Id && tr.LeaderId == team.LeaderId && tr.Status == "Pending")
+                                                                           .ToListAsync();
+            foreach (var tr in pendingTeamRequestsForDoctorProjectIdeas)
+                tr.Status = "Rejected";
+
+            await _unitOfWork.CompleteAsync();
+
             return Ok(new ApiResponse(200, $"Status Of Project id: '{teamProjectIdea.Id}' Updated To '{model.NewStatus.ToLower()}' Successfully!", new { IsSuccess = true }));
         }
 
@@ -283,6 +291,14 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if(leader.LeaderOfTeam?.HasProject == true)
                 return BadRequest(new ApiResponse(400, "Your team already has a project.", new { IsSuccess = false }));
+
+            var existingTeamRequest = await _dbContext.TeamsRequestDoctorProjectIdeas.FirstOrDefaultAsync(tr => tr.TeamId == teamExists.Id &&
+                                                             tr.DoctorProjectIdeaId == projectExists.Id &&
+                                                             tr.LeaderId == leader.Id &&
+                                                             tr.DoctorId == projectExists.DoctorId &&
+                                                             tr.Status == "Pending");
+            if (existingTeamRequest != null)
+                return BadRequest(new ApiResponse(400, "A request exists before that for this project idea.", new { IsSuccess = false }));
 
             var projectRequest = new TeamRequestDoctorProjectIdea
             {
@@ -387,7 +403,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return StatusCode(500, new ApiResponse(500, "Failed to save changes.", new { IsSuccess = false, Error = ex.InnerException?.Message ?? ex.Message }));
             }
 
-            return Ok(new ApiResponse(200, $"Project Request approved and other requests rejected successfully!", new {IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Project Request approved and other requests rejected successfully!", new { IsSuccess = true }));
         }
 
         // Finished / Tested

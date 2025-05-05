@@ -90,7 +90,7 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             if (model is null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
-            if (string.IsNullOrWhiteSpace(model.TeamName))
+            if (string.IsNullOrEmpty(model.TeamName))
                 return BadRequest(new ApiResponse(400, "Team name is required.", new { IsSuccess = false }));
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
@@ -101,7 +101,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (student == null)
                 return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
 
-            if (student.InTeam == true)
+            if (student.InTeam)
                 return BadRequest(new ApiResponse(400, "Student is already in a team.", new { IsSuccess = false }));
 
             if (student.LeaderOfTeamId != null && student.TeamId != null)
@@ -128,7 +128,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
                 student.InTeam = true;
                 student.TeamId = teamCreated?.Id;
-                student.LeaderOfTeamId = teamCreated?.Id;
+                student.LeaderOfTeamId = teamCreated?.LeaderId;
                 _unitOfWork.Repository<Student>().Update(student);
                 await _unitOfWork.CompleteAsync();
             }

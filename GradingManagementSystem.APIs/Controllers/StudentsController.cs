@@ -31,8 +31,6 @@ namespace GradingManagementSystem.APIs.Controllers
             var student = await _dbContext.Students.FirstOrDefaultAsync(s => s.AppUserId == userId);
             if (student == null)
                 return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
-            if (student.TeamId != null && student.InTeam == true)
-                return BadRequest(new ApiResponse(400, "Student already in a team.", new { IsSuccess = false }));
 
             List<Student> students = new List<Student>();
             

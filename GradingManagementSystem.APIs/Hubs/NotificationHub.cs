@@ -4,7 +4,7 @@ namespace GradingManagementSystem.APIs.Hubs
 {
     public class NotificationHub : Hub
     {
-
+        private static readonly string[] ValidRoles = { "Doctors", "Students", "All" };
         public override async Task OnConnectedAsync()
         {
             var role = Context.User.IsInRole("Doctor") ? "Doctors" :
@@ -33,17 +33,27 @@ namespace GradingManagementSystem.APIs.Hubs
 
         public async Task SendNotification(string title, string description, string role)
         {
-            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description))
+            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(role))
             {
-                throw new HubException("Title and description cannot be empty.");
+                throw new HubException("Title, Description, and Role cannot be empty.");
             }
 
-            if (role.Equals("Doctors", StringComparison.OrdinalIgnoreCase))
-                await Clients.Group("Doctors").SendAsync("ReceiveNotification", title, description, "Doctors");
-            else if (role.Equals("Students", StringComparison.OrdinalIgnoreCase))
-                await Clients.Group("Students").SendAsync("ReceiveNotification", title, description, "Students");
+            role = role.Trim();
+            if (!ValidRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new HubException("Invalid recipient type. Must be 'Doctors', 'Students', or 'All'.");
+            }
+            string normalizedRole = role.Equals("All", StringComparison.OrdinalIgnoreCase) ? "All" :
+                                   role.Equals("Doctors", StringComparison.OrdinalIgnoreCase) ? "Doctors" : "Students";
+
+            if (normalizedRole == "All")
+            {
+                await Clients.All.SendAsync("ReceiveNotification", title, description, normalizedRole);
+            }
             else
-                await Clients.All.SendAsync("ReceiveNotification", title, description, "All");
+            {
+                await Clients.Group(normalizedRole).SendAsync("ReceiveNotification", title, description, normalizedRole);
+            }
         }
     }
 }

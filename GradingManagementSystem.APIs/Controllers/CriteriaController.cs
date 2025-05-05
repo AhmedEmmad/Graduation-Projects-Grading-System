@@ -87,11 +87,19 @@ namespace GradingManagementSystem.APIs.Controllers
         }
 
         // Finished / Reviewed / Tested
-        [HttpGet("All")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetAllCriteriaList()
+        [HttpGet("AllForStudent")]
+        [Authorize(Roles = "Student")]
+        public async Task<IActionResult> GetAllCriteriaListForStudent()
         {
-            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true);
+            var studentAppUserId = User.FindFirst("UserId")?.Value;
+            if (studentAppUserId == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized Access.", new { IsSuccess = false }));
+
+            var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentAppUserId);
+            if (student == null)
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
+            
+            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true && c.Specialty == student.Specialty);
             if (existingCriteriaList == null || !existingCriteriaList.Any())
                 return NotFound(CreateErrorResponse404NotFound("No criteria list Found."));
 
@@ -198,6 +206,8 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Criteria '{existingCriteria.Name}' (ID: {criteriaId}) deleted successfully.", new { IsSuccess = true }));
         }
 
+        
+        
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {
             return new ApiResponse(400, message, new { IsSuccess = false });

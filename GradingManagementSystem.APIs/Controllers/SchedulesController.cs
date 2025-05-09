@@ -2,7 +2,6 @@
 using GradingManagementSystem.Core.CustomResponses;
 using GradingManagementSystem.Core.DTOs;
 using GradingManagementSystem.Core.Entities;
-using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,27 +35,30 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctor == null)
                 return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic year appointment found."));
+
             var doctorSchedules = await _dbContext.CommitteeDoctorSchedules
-                                                .Include(ds => ds.Schedule)
-                                                    .ThenInclude(s => s.Team)
-                                                        .ThenInclude(t => t.FinalProjectIdea)
-                                                .Include(ds => ds.Schedule.Team)
-                                                    .ThenInclude(t => t.Students)
-                                                        .ThenInclude(s => s.AppUser)
-                                                .Include(ds => ds.Schedule.Team)
-                                                    .ThenInclude(t => t.Supervisor)
-                                                        .ThenInclude(s => s.AppUser)
-                                                .Include(ds => ds.Schedule.Team)
-                                                    .ThenInclude(t => t.Leader)
-                                                .Where(ds => ds.DoctorId == doctor.Id)
-                                                .AsSplitQuery()
-                                                .ToListAsync();
+                .Include(ds => ds.Schedule)
+                    .ThenInclude(s => s.Team)
+                        .ThenInclude(t => t.FinalProjectIdea)
+                .Include(ds => ds.Doctor)
+                .Include(ds => ds.Schedule.Team)
+                    .ThenInclude(t => t.Students)
+                        .ThenInclude(s => s.AppUser)
+                .Include(ds => ds.Schedule.Team)
+                    .ThenInclude(t => t.Supervisor)
+                        .ThenInclude(s => s.AppUser)
+                .Include(ds => ds.Schedule.Team)
+                    .ThenInclude(t => t.Leader)
+                .AsSplitQuery()
+                .ToListAsync();
 
             if (doctorSchedules == null || !doctorSchedules.Any())
                 return NotFound(CreateErrorResponse404NotFound("No schedules found for this doctor."));
 
-            var supervisionTeams = doctorSchedules
-                .Where(ds => ds.DoctorRole == "Supervisor")
+            var doctorScheduleDtos = doctorSchedules
                 .GroupBy(ds => ds.ScheduleId)
                 .Select(group => new DoctorScheduleDto
                 {
@@ -71,7 +73,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
                     ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
                     ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
-                    DoctorRole = "Supervisor",
+                    DoctorRole = group.Any(ds => ds.DoctorId == doctor.Id && ds.DoctorRole == "Supervisor") ? "Supervisor" : "Examiner",
                     PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
                     SupervisorId = group.First().Schedule.Team?.SupervisorId,
                     SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
@@ -84,70 +86,47 @@ namespace GradingManagementSystem.APIs.Controllers
                             InTeam = s.InTeam,
                             Specialty = s.Specialty,
                             ProfilePicture = s.AppUser?.ProfilePicture
-                        }).ToList() ?? new List<TeamMemberDto>()
-                }).ToList();
-
-            var examinationTeams = doctorSchedules
-                .Where(ds => ds.DoctorRole == "Examiner")
-                .GroupBy(ds => ds.ScheduleId)
-                .Select(group => new DoctorScheduleDto
-                {
-                    ScheduleId = group.Key,
-                    ScheduleDate = group.First().Schedule.ScheduleDate,
-                    Status = group.First().Schedule.Status,
-                    TeamId = group.First().Schedule.TeamId,
-                    TeamName = group.First().Schedule.Team?.Name,
-                    TeamLeaderId = group.First().Schedule.Team?.LeaderId,
-                    TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName,
-                    Specialty = group.First().Schedule.Team?.Specialty,
-                    ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
-                    ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
-                    ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
-                    DoctorRole = "Examiner",
-                    PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
-                    SupervisorId = group.First().Schedule.Team?.SupervisorId,
-                    SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
-                    TeamMembers = group.First().Schedule.Team?.Students?
-                        .Select(s => new TeamMemberDto
+                        }).ToList() ?? new List<TeamMemberDto>(),
+                    Examiners = doctorSchedules
+                        .Where(d => d.ScheduleId == group.Key && d.DoctorRole == "Examiner")
+                        .Select(d => new ExaminerDto
                         {
-                            Id = s.Id,
-                            FullName = s.FullName,
-                            Email = s.Email,
-                            InTeam = s.InTeam,
-                            Specialty = s.Specialty,
-                            ProfilePicture = s.AppUser?.ProfilePicture
-                        }).ToList() ?? new List<TeamMemberDto>()
-                }).ToList();
+                            ExaminerId = d.DoctorId,
+                            ExaminerName = d.Doctor?.FullName
+                        }).ToList() ?? new List<ExaminerDto>()
+                })
+                .ToList();
 
             return Ok(new ApiResponse(200, "Doctor schedules retrieved successfully.", new
             {
                 IsSuccess = true,
-                supervisionTeams,
-                examinationTeams
+                Schedules = doctorScheduleDtos
             }));
         }
+
 
         // Finished / Reviewed / Tested
         [HttpGet("AllStudentSchedules")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllStudentSchedules()
         {
-            var studentId = User.FindFirst("UserId")?.Value;
-            if (studentId == null)
+            var studentAppUserId = User.FindFirst("UserId")?.Value;
+            if (studentAppUserId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
-            var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentId);
+
+            var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentAppUserId);
             if (student == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
             var studentSchedules = await _dbContext.Schedules
                                                    .Include(s => s.Team)
                                                         .ThenInclude(t => t.FinalProjectIdea)
                                                    .Include(s => s.Team)
                                                         .ThenInclude(t => t.Supervisor)
-                                                        .ThenInclude(s => s.AppUser)
+                                                                .ThenInclude(s => s.AppUser)
                                                    .Include(s => s.Team)
                                                         .ThenInclude(t => t.Students)
-                                                        .ThenInclude(st => st.AppUser)
+                                                                .ThenInclude(st => st.AppUser)
                                                     .Include(s => s.CommitteeDoctorSchedules)
                                                         .ThenInclude(cds => cds.Doctor)
                                                    .Where(s => s.Team.Students.Any(st => st.Id == student.Id))
@@ -155,7 +134,7 @@ namespace GradingManagementSystem.APIs.Controllers
                                                    .ToListAsync();
 
             if (studentSchedules == null || !studentSchedules.Any())
-                return NotFound(new ApiResponse(404, "No schedules found for his student.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No schedules found for his student."));
 
             var schedules = studentSchedules.Select(s => new StudentScheduleDto
             {
@@ -166,6 +145,8 @@ namespace GradingManagementSystem.APIs.Controllers
                 ProjectDescription = s.Team?.FinalProjectIdea?.ProjectDescription,
                 ScheduleDate = s.ScheduleDate,
                 Status = s.Status,
+                SupervisorId = s.Team?.SupervisorId,
+                SupervisorProfilePicture = s.Team?.Supervisor?.AppUser?.ProfilePicture,
                 SupervisorName = s.Team?.Supervisor?.FullName,
                 PostedBy = s.Team?.FinalProjectIdea?.PostedBy,
                 TeamMembers = s.Team?.Students?.Select(st => new TeamMemberDto
@@ -176,14 +157,9 @@ namespace GradingManagementSystem.APIs.Controllers
                                                     InTeam = st.InTeam,
                                                     Specialty = st.Specialty,
                                                     ProfilePicture = st.AppUser?.ProfilePicture
-                                                }).ToList() ?? new List<TeamMemberDto>(),
-                Examiners = s.CommitteeDoctorSchedules?.Where(d => d.DoctorRole == "Examiner")
-                                                       .Select(d => new ExaminerDto
-                                                       {
-                                                           ExaminerId = d.DoctorId,
-                                                           ExaminerName = d.Doctor.FullName
-                                                       }).ToList() ?? new List<ExaminerDto>()
-            }).ToList();
+                                                }).ToList() ?? new List<TeamMemberDto>()
+            })
+            .ToList();
 
             return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = schedules }));
         }
@@ -194,40 +170,44 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
 
             var team = await _dbContext.Teams.Include(t => t.Supervisor).FirstOrDefaultAsync(t => t.Id == model.TeamId && t.HasProject == true);
             if (team == null)
-                return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
             if (model.ScheduleDate <= DateTime.Now)
-                return BadRequest(new ApiResponse(400, "Schedule Date must be in the future.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Schedule Date must be in the future."));
 
             var activeAcademicAppointment = await _dbContext.AcademicAppointments
-                .Where(a => a.Status == "Active")
-                .FirstOrDefaultAsync();
+                                                            .Where(a => a.Status == "Active")
+                                                            .FirstOrDefaultAsync();
 
             if (model.ScheduleDate < activeAcademicAppointment?.FirstTermStart &&
                 model.ScheduleDate > activeAcademicAppointment?.FirstTermEnd &&
                 model.ScheduleDate < activeAcademicAppointment?.SecondTermStart &&
                 model.ScheduleDate > activeAcademicAppointment?.SecondTermEnd
                )
-                return BadRequest(new ApiResponse(400, "Schedule Date must be within the active academic appointment period.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Schedule Date must be within the active academic appointment period."));
 
             if (model.CommitteeDoctorIds == null || !model.CommitteeDoctorIds.Any())
-                return BadRequest(new ApiResponse(400, "Committee Doctors list cannot be empty.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Committee Doctors list cannot be empty."));
 
             var doctors = await _dbContext.Doctors.ToListAsync();
             var committeeDoctors = doctors.Where(d => model.CommitteeDoctorIds.Contains(d.Id)).ToList();
 
             if (committeeDoctors.Count != model.CommitteeDoctorIds.Count)
-                return BadRequest(new ApiResponse(400, "One or more Doctor IDs are invalid.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("One or more Doctor IDs are invalid."));
+
+            var exsitingSchedule = await _dbContext.Schedules.Where(s => s.TeamId == model.TeamId).FirstOrDefaultAsync();
+            if (exsitingSchedule != null)
+                return BadRequest(CreateErrorResponse400BadRequest("Schedule exists for this team."));
 
             var newSchedule = new Schedule
             {
                 TeamId = model.TeamId,
                 ScheduleDate = model.ScheduleDate,
-                AcademicAppointmentId = activeAcademicAppointment.Id
+                AcademicAppointmentId = activeAcademicAppointment?.Id
             };
 
             await _unitOfWork.Repository<Schedule>().AddAsync(newSchedule);
@@ -246,7 +226,7 @@ namespace GradingManagementSystem.APIs.Controllers
             var committeeSupervisorSchedule = new CommitteeDoctorSchedule
             {
                 ScheduleId = newSchedule.Id,
-                DoctorId = team.SupervisorId.Value,
+                DoctorId = team?.SupervisorId,
                 DoctorRole = "Supervisor",
             };
 
@@ -266,7 +246,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Schedule created successfully for this team ID: '{team.Id}' with schedule ID: '{newSchedule.Id}'.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Schedule created successfully for this team .", new { IsSuccess = true }));
         }
 
 
@@ -279,5 +259,6 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             return new ApiResponse(404, message, new { IsSuccess = false });
         }
+          
     }
 }

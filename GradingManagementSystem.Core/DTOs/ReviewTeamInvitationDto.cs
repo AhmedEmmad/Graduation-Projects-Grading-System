@@ -4,6 +4,6 @@
     {
 
         public int invitationId { get; set; }
-        public string newStatus { get; set; }
+        public string? newStatus { get; set; }
     }
 }

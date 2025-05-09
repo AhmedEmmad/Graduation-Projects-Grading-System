@@ -18,7 +18,7 @@ namespace GradingManagementSystem.Repository
         public async Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctorAsync(int doctorId)
         {
             var teams = await _dbContext.Teams.Include(t => t.Students)
-                                                .ThenInclude(s => s.AppUser)
+                                                    .ThenInclude(s => s.AppUser)
                                               .Where(t => t.SupervisorId == doctorId).ToListAsync();
 
             var result = teams.Select(t => new TeamWithMembersDto

@@ -5,24 +5,25 @@
 namespace GradingManagementSystem.Repository.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class AddedProjectDescriptionInFinalProjectIdeasTable : Migration
+    public partial class AddedTakenPropertyInDoctorProjectIdea : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "ProjectDescription",
-                table: "FinalProjectIdeas",
-                type: "nvarchar(max)",
-                nullable: true);
+            migrationBuilder.AddColumn<bool>(
+                name: "Taken",
+                table: "DoctorProjectIdeas",
+                type: "bit",
+                nullable: false,
+                defaultValue: false);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "ProjectDescription",
-                table: "FinalProjectIdeas");
+                name: "Taken",
+                table: "DoctorProjectIdeas");
         }
     }
 }

@@ -83,13 +83,40 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.Repository<Criteria>().AddAsync(newCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria '{newCriteria.Name}' created successfully for specialty '{newCriteria.Specialty}' with ID: '{newCriteria.Id}'.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Criteria '{newCriteria.Name}' created successfully.", new { IsSuccess = true }));
+        }
+
+        [HttpGet("All")]
+        [Authorize(Roles = "Admin, Student, Doctor")]
+        public async Task<IActionResult> GetAllCriteriaList()
+        {
+            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true);
+            if (existingCriteriaList == null || !existingCriteriaList.Any())
+                return NotFound(CreateErrorResponse404NotFound("No criteria list found."));
+
+            var criteriaList = existingCriteriaList.Select(c => new CriteriaObjectDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                Description = c.Description,
+                MaxGrade = c.MaxGrade,
+                Evaluator = c.Evaluator,
+                GivenTo = c.GivenTo,
+                Specialty = c.Specialty,
+                Year = c.Year,
+                Term = c.Term,
+                IsActive = c.IsActive,
+                CreatedAt = c.CreatedAt,
+                LastUpdatedAt = c.LastUpdatedAt,
+            }).ToList();
+
+            return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true, criteriaList }));
         }
 
         // Finished / Reviewed / Tested
         [HttpGet("AllForStudent")]
         [Authorize(Roles = "Student")]
-        public async Task<IActionResult> GetAllCriteriaListForStudent()
+        public async Task<IActionResult> GetAllCriteriaListForStudentBasedOnYourSpecialty()
         {
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
@@ -185,7 +212,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork.Repository<Criteria>().Update(existingCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria '{existingCriteria.Id}' updated successfully.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Criteria updated successfully.", new { IsSuccess = true }));
         }
 
         // Finished / Reviewed / Tested
@@ -203,11 +230,9 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork.Repository<Criteria>().Delete(existingCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria '{existingCriteria.Name}' (ID: {criteriaId}) deleted successfully.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Criteria deleted successfully.", new { IsSuccess = true }));
         }
 
-        
-        
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {
             return new ApiResponse(400, message, new { IsSuccess = false });
@@ -217,5 +242,6 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             return new ApiResponse(404, message, new { IsSuccess = false });
         }
+        
     }
 }

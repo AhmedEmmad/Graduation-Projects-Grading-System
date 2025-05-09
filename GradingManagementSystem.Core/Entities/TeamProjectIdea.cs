@@ -2,13 +2,13 @@
 {
     public class TeamProjectIdea : BaseEntity
     {
-        public string Name { get; set; }
-        public string Description { get; set; }
+        public string? Name { get; set; }
+        public string? Description { get; set; }
         public DateTime SubmissionDate { get; set; } = DateTime.Now;
-        public string Status { get; set; } = StatusType.Pending.ToString();
+        public string? Status { get; set; } = StatusType.Pending.ToString();
 
-        public int TeamId { get; set; } // Foreign Key Of Id In Team Table
-        public int LeaderId { get; set; } // Foreign Key Of Id In Student Table
+        public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
+        public int? LeaderId { get; set; } // Foreign Key Of Id In Student Table
 
 
         #region Navigation Properties

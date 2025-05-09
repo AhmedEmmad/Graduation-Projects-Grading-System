@@ -21,8 +21,4 @@
     <ProjectReference Include="..\GradingManagementSystem.Core\GradingManagementSystem.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Data\Migrations\" />
-  </ItemGroup>
-
 </Project>

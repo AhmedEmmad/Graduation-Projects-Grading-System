@@ -10,7 +10,7 @@ namespace GradingManagementSystem.Core.Entities
         public bool InTeam { get; set; } = false;
         public DateTime EnrollmentDate { get; set; } = DateTime.Now;
 
-        public string AppUserId { get; set; } // Foreign Key Of Id In AspNetUsers Table
+        public string? AppUserId { get; set; } // Foreign Key Of Id In AspNetUsers Table
         public int? TeamId { get; set; } = null; // Foreign Key Of Id In Team Table
         public int? LeaderOfTeamId { get; set; } = null; // Foreign Key Of Id In Team Table To Represent Leader Of Team
 

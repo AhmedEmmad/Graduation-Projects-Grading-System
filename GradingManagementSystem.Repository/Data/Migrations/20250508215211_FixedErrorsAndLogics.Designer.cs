@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GradingManagementSystem.Repository.Data.Migrations
 {
     [DbContext(typeof(GradingManagementSystemDbContext))]
-    [Migration("20250418204815_UpdatePropertiesOfFinalProjectIdeasTable")]
-    partial class UpdatePropertiesOfFinalProjectIdeasTable
+    [Migration("20250508215211_FixedErrorsAndLogics")]
+    partial class FixedErrorsAndLogics
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,6 +24,75 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
+
+            modelBuilder.Entity("CriteriaSchedule", b =>
+                {
+                    b.Property<int>("CriteriasId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SchedulesId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CriteriasId", "SchedulesId");
+
+                    b.HasIndex("SchedulesId");
+
+                    b.ToTable("CriteriaSchedule");
+                });
+
+            modelBuilder.Entity("CriteriaTeam", b =>
+                {
+                    b.Property<int>("CriteriasId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TeamsId")
+                        .HasColumnType("int");
+
+                    b.HasKey("CriteriasId", "TeamsId");
+
+                    b.HasIndex("TeamsId");
+
+                    b.ToTable("CriteriaTeam");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.AcademicAppointment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FirstTermEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("FirstTermStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("SecondTermEnd")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("SecondTermStart")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Year")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AcademicAppointments");
+                });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Admin", b =>
                 {
@@ -57,6 +126,119 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("Admins");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CommitteeDoctorSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DoctorId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DoctorRole")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("HasCompletedEvaluation")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.ToTable("CommitteeDoctorSchedules");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AcademicAppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Evaluator")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("GivenTo")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MaxGrade")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Specialty")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Term")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Year")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcademicAppointmentId");
+
+                    b.ToTable("Criterias");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CriteriaId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MaxGrade")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CriteriaId");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.ToTable("CriteriaSchedules");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -110,7 +292,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -123,7 +305,66 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("DoctorId");
 
+                    b.HasIndex("Name")
+                        .IsUnique();
+
                     b.ToTable("DoctorProjectIdeas");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Evaluation", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AdminEvaluatorId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("CriteriaId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DoctorEvaluatorId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("EvaluationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EvaluatorRole")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<double>("Grade")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime?>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("ScheduleId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("StudentId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminEvaluatorId");
+
+                    b.HasIndex("CriteriaId");
+
+                    b.HasIndex("DoctorEvaluatorId");
+
+                    b.HasIndex("ScheduleId");
+
+                    b.HasIndex("StudentId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("Evaluations");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.FinalProjectIdea", b =>
@@ -132,7 +373,9 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("PostedBy")
-                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ProjectDescription")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProjectName")
@@ -154,7 +397,9 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.HasIndex("SupervisorId");
 
-                    b.HasIndex("TeamId");
+                    b.HasIndex("TeamId")
+                        .IsUnique()
+                        .HasFilter("[TeamId] IS NOT NULL");
 
                     b.HasIndex("TeamProjectIdeaId");
 
@@ -183,7 +428,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasColumnType("bit");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("LockoutEnabled")
@@ -246,7 +490,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("LeaderId")
+                    b.Property<int?>("LeaderId")
                         .HasColumnType("int");
 
                     b.Property<DateTime?>("RespondedDate")
@@ -256,13 +500,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("StudentId")
+                    b.Property<int?>("StudentId")
                         .HasColumnType("int");
 
-                    b.Property<int>("TeamId")
+                    b.Property<int?>("TeamId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
@@ -287,9 +530,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Property<int?>("AdminId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -301,10 +541,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime>("SentAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.HasKey("Id");
 
@@ -313,7 +555,46 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasIndex("Title")
                         .IsUnique();
 
-                    b.ToTable("Notifications", (string)null);
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Schedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AcademicAppointmentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastUpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ScheduleDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int?>("TeamId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcademicAppointmentId");
+
+                    b.HasIndex("TeamId");
+
+                    b.ToTable("Schedules");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Student", b =>
@@ -325,18 +606,15 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("AppUserId")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
 
                     b.Property<DateTime>("EnrollmentDate")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("InTeam")
@@ -346,7 +624,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Specialty")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("TeamId")
@@ -355,10 +632,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AppUserId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[AppUserId] IS NOT NULL");
 
                     b.HasIndex("Email")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[Email] IS NOT NULL");
 
                     b.HasIndex("TeamId");
 
@@ -417,6 +696,9 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -429,9 +711,6 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
                     b.Property<int>("TeamId")
                         .HasColumnType("int");
-
-                    b.Property<DateTime?>("FinishedAt")
-                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
@@ -455,12 +734,14 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Property<bool>("HasProject")
                         .HasColumnType("bit");
 
-                    b.Property<int>("LeaderId")
+                    b.Property<int?>("LeaderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
-                        .IsRequired()
                         .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Specialty")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("SupervisorId")
                         .HasColumnType("int");
@@ -468,10 +749,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("LeaderId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[LeaderId] IS NOT NULL");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[Name] IS NOT NULL");
 
                     b.HasIndex("SupervisorId");
 
@@ -487,29 +770,30 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Description")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<int>("LeaderId")
+                    b.Property<int?>("LeaderId")
                         .HasColumnType("int");
 
                     b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("Status")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("SubmissionDate")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("TeamId")
+                    b.Property<int?>("TeamId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
                     b.HasIndex("LeaderId");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasFilter("[Name] IS NOT NULL");
 
                     b.HasIndex("TeamId");
 
@@ -568,18 +852,15 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("FullName")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("InTeam")
                         .HasColumnType("bit");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ProfilePicture")
@@ -605,14 +886,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("ExpiryTime")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("OtpCode")
-                        .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
@@ -753,6 +1032,36 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CriteriaSchedule", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", null)
+                        .WithMany()
+                        .HasForeignKey("CriteriasId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", null)
+                        .WithMany()
+                        .HasForeignKey("SchedulesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("CriteriaTeam", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", null)
+                        .WithMany()
+                        .HasForeignKey("CriteriasId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Team", null)
+                        .WithMany()
+                        .HasForeignKey("TeamsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Admin", b =>
                 {
                     b.HasOne("GradingManagementSystem.Core.Entities.Identity.AppUser", "AppUser")
@@ -762,6 +1071,51 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("AppUser");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CommitteeDoctorSchedule", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.Doctor", "Doctor")
+                        .WithMany("DoctorSchedules")
+                        .HasForeignKey("DoctorId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", "Schedule")
+                        .WithMany("CommitteeDoctorSchedules")
+                        .HasForeignKey("ScheduleId");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Schedule");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.AcademicAppointment", "AcademicAppointment")
+                        .WithMany("Criterias")
+                        .HasForeignKey("AcademicAppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AcademicAppointment");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.CriteriaSchedule", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", "Criteria")
+                        .WithMany("CriteriaSchedules")
+                        .HasForeignKey("CriteriaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", "Schedule")
+                        .WithMany("CriteriaSchedules")
+                        .HasForeignKey("ScheduleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Criteria");
+
+                    b.Navigation("Schedule");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
@@ -786,6 +1140,45 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.Navigation("Doctor");
                 });
 
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Evaluation", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.Admin", "AdminEvaluator")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("AdminEvaluatorId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Criteria", "Criteria")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("CriteriaId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Doctor", "DoctorEvaluator")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("DoctorEvaluatorId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Schedule", "Schedule")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("ScheduleId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Student", "Student")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("StudentId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
+                        .WithMany("Evaluations")
+                        .HasForeignKey("TeamId");
+
+                    b.Navigation("AdminEvaluator");
+
+                    b.Navigation("Criteria");
+
+                    b.Navigation("DoctorEvaluator");
+
+                    b.Navigation("Schedule");
+
+                    b.Navigation("Student");
+
+                    b.Navigation("Team");
+                });
+
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.FinalProjectIdea", b =>
                 {
                     b.HasOne("GradingManagementSystem.Core.Entities.Doctor", "Supervisor")
@@ -793,8 +1186,8 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .HasForeignKey("SupervisorId");
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
-                        .WithMany()
-                        .HasForeignKey("TeamId");
+                        .WithOne("FinalProjectIdea")
+                        .HasForeignKey("GradingManagementSystem.Core.Entities.FinalProjectIdea", "TeamId");
 
                     b.HasOne("GradingManagementSystem.Core.Entities.TeamProjectIdea", "TeamProjectIdea")
                         .WithMany()
@@ -817,21 +1210,15 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                 {
                     b.HasOne("GradingManagementSystem.Core.Entities.Student", "Leader")
                         .WithMany()
-                        .HasForeignKey("LeaderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("LeaderId");
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Student", "Student")
                         .WithMany()
-                        .HasForeignKey("StudentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("StudentId");
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
                         .WithMany()
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TeamId");
 
                     b.Navigation("Leader");
 
@@ -845,9 +1232,25 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasOne("GradingManagementSystem.Core.Entities.Admin", "Admin")
                         .WithMany("Notifications")
                         .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Admin");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Schedule", b =>
+                {
+                    b.HasOne("GradingManagementSystem.Core.Entities.AcademicAppointment", "AcademicAppointment")
+                        .WithMany()
+                        .HasForeignKey("AcademicAppointmentId");
+
+                    b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
+                        .WithMany("Schedules")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("AcademicAppointment");
+
+                    b.Navigation("Team");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Student", b =>
@@ -855,8 +1258,7 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasOne("GradingManagementSystem.Core.Entities.Identity.AppUser", "AppUser")
                         .WithOne("Student")
                         .HasForeignKey("GradingManagementSystem.Core.Entities.Student", "AppUserId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
                         .WithMany("Students")
@@ -919,13 +1321,11 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasOne("GradingManagementSystem.Core.Entities.Student", "Leader")
                         .WithOne("LeaderOfTeam")
                         .HasForeignKey("GradingManagementSystem.Core.Entities.Team", "LeaderId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Doctor", "Supervisor")
                         .WithMany("Teams")
-                        .HasForeignKey("SupervisorId")
-                        .OnDelete(DeleteBehavior.NoAction);
+                        .HasForeignKey("SupervisorId");
 
                     b.Navigation("Leader");
 
@@ -937,14 +1337,12 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                     b.HasOne("GradingManagementSystem.Core.Entities.Student", "Leader")
                         .WithMany("TeamProjectIdeas")
                         .HasForeignKey("LeaderId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.HasOne("GradingManagementSystem.Core.Entities.Team", "Team")
                         .WithMany("TeamProjectIdeas")
                         .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Leader");
 
@@ -1037,14 +1435,32 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.AcademicAppointment", b =>
+                {
+                    b.Navigation("Criterias");
+                });
+
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Admin", b =>
                 {
+                    b.Navigation("Evaluations");
+
                     b.Navigation("Notifications");
+                });
+
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Criteria", b =>
+                {
+                    b.Navigation("CriteriaSchedules");
+
+                    b.Navigation("Evaluations");
                 });
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Doctor", b =>
                 {
                     b.Navigation("DoctorProjectIdeas");
+
+                    b.Navigation("DoctorSchedules");
+
+                    b.Navigation("Evaluations");
 
                     b.Navigation("Tasks");
 
@@ -1070,8 +1486,19 @@ namespace GradingManagementSystem.Repository.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("GradingManagementSystem.Core.Entities.Schedule", b =>
+                {
+                    b.Navigation("CommitteeDoctorSchedules");
+
+                    b.Navigation("CriteriaSchedules");
+
+                    b.Navigation("Evaluations");
+                });
+
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Student", b =>
                 {
+                    b.Navigation("Evaluations");
+
                     b.Navigation("LeaderOfTeam")
                         .IsRequired();
 
@@ -1089,6 +1516,13 @@ namespace GradingManagementSystem.Repository.Data.Migrations
 
             modelBuilder.Entity("GradingManagementSystem.Core.Entities.Team", b =>
                 {
+                    b.Navigation("Evaluations");
+
+                    b.Navigation("FinalProjectIdea")
+                        .IsRequired();
+
+                    b.Navigation("Schedules");
+
                     b.Navigation("Students");
 
                     b.Navigation("TaskMembers");

@@ -2,9 +2,9 @@
 {
     public class TemporaryUser : BaseEntity
     {
-            public string FullName { get; set; } = string.Empty;
-            public string Email { get; set; } = string.Empty;
-            public string PasswordHash { get; set; } = string.Empty;
+            public string? FullName { get; set; } = null;
+            public string? Email { get; set; } = null;
+            public string? PasswordHash { get; set; }
             public DateTime CreatedAt { get; set; } = DateTime.Now;
             public string? ProfilePicture { get; set; } = null;
             public string? Specialty { get; set; } = null;

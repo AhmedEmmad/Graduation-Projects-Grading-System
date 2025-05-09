@@ -2,8 +2,8 @@
 {
     public class UserOtp : BaseEntity
     {
-        public string Email { get; set; } = string.Empty;
-        public string OtpCode { get; set; } = string.Empty;
+        public string? Email { get; set; }
+        public string? OtpCode { get; set; }
         public DateTime ExpiryTime { get; set; }
     }
 }

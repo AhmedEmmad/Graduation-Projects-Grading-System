@@ -18,21 +18,27 @@ namespace GradingManagementSystem.APIs.Controllers
         private readonly IUnitOfWork _unitOfWork;
         private readonly ITeamRepository _teamRepository;
 
-        public TeamsController(GradingManagementSystemDbContext dbContext, IUnitOfWork unitOfWork, ITeamRepository teamRepository)
+        public TeamsController(GradingManagementSystemDbContext dbContext,
+                               IUnitOfWork unitOfWork,
+                               ITeamRepository teamRepository)
         {
             _dbContext = dbContext;
             _unitOfWork = unitOfWork;
             _teamRepository = teamRepository;
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpGet("AllTeamsWithProjects")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllTeams()
         {
-            var teams = await _dbContext.Teams.Include(t => t.Leader).Include(t => t.Supervisor).Where(t => t.HasProject == true).ToListAsync();
+            var teams = await _dbContext.Teams.Include(t => t.Leader)
+                                              .Include(t => t.Supervisor)
+                                              .Include(t => t.Schedules)
+                                              .Where(t => t.HasProject == true && !t.Schedules.Any(s => s.TeamId == t.Id)).ToListAsync();
             if (teams == null || !teams.Any())
-                return NotFound(new ApiResponse(404, "No teams found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("No teams found."));
+
             var result = teams.Select(t => new TeamForSettingScheduleDto
             {
                 Id = t.Id,
@@ -49,8 +55,10 @@ namespace GradingManagementSystem.APIs.Controllers
         // Finished / Reviewed / Tested
         [HttpGet("TeamWithMembers/{teamId}")]
         [Authorize(Roles = "Admin, Student, Doctor")]
-        public async Task<IActionResult> GetTeamWithMembersById(int teamId)
+        public async Task<IActionResult> GetTeamWithMembersById(int? teamId)
         {
+            if (teamId == null)
+                return BadRequest(CreateErrorResponse400BadRequest("TeamId is required."));
             if (teamId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
 
@@ -83,62 +91,60 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team and team members found.", new { IsSuccess = true, Team = teamWithMembers }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpPost("CreateTeam")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto model)
         {
             if (model is null)
-                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
             if (string.IsNullOrEmpty(model.TeamName))
-                return BadRequest(new ApiResponse(400, "Team name is required.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Team name is required."));
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
             var student = await _unitOfWork.Repository<Student>().FindAsync(S => S.AppUserId == studentAppUserId);
             if (student == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
-            if (student.InTeam)
-                return BadRequest(new ApiResponse(400, "Student is already in a team.", new { IsSuccess = false }));
+            if (student.InTeam && student.TeamId != null)
+                return BadRequest(CreateErrorResponse400BadRequest("You are already exist in a team."));
 
-            if (student.LeaderOfTeamId != null && student.TeamId != null)
-                return BadRequest(new ApiResponse(400, "Student is already a leader of a team or in a team.", new { IsSuccess = false }));
+            if (student.LeaderOfTeamId != null)
+                return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of a team."));
 
             var teamExists = await _unitOfWork.Repository<Team>().FindAsync(t => t.Name == model.TeamName);
             if (teamExists != null)
-                return BadRequest(new ApiResponse(400, "Team name already exists.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Team name already exists, Please type another unique name."));
 
-            if(teamExists?.LeaderId == student.Id)
-                return BadRequest(new ApiResponse(400, "You are already a leader of this team.", new { IsSuccess = false }));
+            if(teamExists?.LeaderId != null && teamExists?.LeaderId == student.Id)
+                return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of this team."));
 
             var teamCreated = new Team
             {
                 Name = model.TeamName,
-                LeaderId = student.Id,
                 Specialty = student.Specialty,
+                LeaderId = student.Id,
             };
 
-            try
-            {
-                await _unitOfWork.Repository<Team>().AddAsync(teamCreated);
-                await _unitOfWork.CompleteAsync();
+            await _unitOfWork.Repository<Team>().AddAsync(teamCreated);
+            await _unitOfWork.CompleteAsync();
 
-                student.InTeam = true;
-                student.TeamId = teamCreated?.Id;
-                student.LeaderOfTeamId = teamCreated?.LeaderId;
-                _unitOfWork.Repository<Student>().Update(student);
-                await _unitOfWork.CompleteAsync();
-            }
-            catch (DbUpdateException ex)
-            {
-                var innerMessage = ex.InnerException?.Message ?? "No inner exception";
-                return StatusCode(500, new ApiResponse(500, "Failed to create team.", new { IsSuccess = false }));
-            }
+            student.InTeam = true;
+            student.TeamId = teamCreated?.Id;
+            student.LeaderOfTeamId = teamCreated?.LeaderId;
+            _unitOfWork.Repository<Student>().Update(student);
+            await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Team {teamCreated.Name} is created successfully, You're leader of this team.", new { IsSuccess = true }));
+            var TeamInvitationsForStudent = await _unitOfWork.Repository<Invitation>().FindAllAsync(i => i.StudentId == student.Id);
+            foreach (var ti in TeamInvitationsForStudent)
+                ti.Status = "Rejected";
+
+            await _unitOfWork.CompleteAsync();
+            
+            return Ok(new ApiResponse(200, $"Team {teamCreated?.Name} created successfully, You're leader of this team.", new { IsSuccess = true }));
         }
 
         // Finished / Reviewed / Tested
@@ -161,31 +167,42 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams retrieved successfully.", new { IsSuccess = true, Teams = TeamsList }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpPost("InviteStudent")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SendInvitation([FromBody] InviteStudentDto model)
         {
-            var currentStudent = await _unitOfWork.Repository<Student>().FindAsync(s => s.Id == model.LeaderId);
-            if (currentStudent == null)
-                return NotFound(new ApiResponse(404, "Leader not found.", new { IsSuccess = false }));
+            if (model is null)
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
 
-            if (currentStudent.TeamId == null && currentStudent.LeaderOfTeamId != model.TeamId)
-                return BadRequest(new ApiResponse(400, "Only team leaders can send invitations.", new { IsSuccess = false }));
+            var studentAppUserId = User.FindFirst("UserId")?.Value;
+            if (studentAppUserId == null)
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
+            
+            var leader = await _unitOfWork.Repository<Student>().FindAsync(s => s.Id == model.LeaderId);
+            if (leader == null)
+                return NotFound(CreateErrorResponse404NotFound("Leader not found."));
 
-            var student = await _dbContext.Students.FirstOrDefaultAsync(s => s.Id == model.StudentId && s.InTeam == false);
-
+            var student = await _unitOfWork.Repository<Student>()
+                                           .FindAsync(s => s.Id == model.StudentId &&
+                                                      s.InTeam == false &&
+                                                      s.LeaderOfTeamId == null &&
+                                                      s.TeamId == null);
             if (student == null)
-                return BadRequest(new ApiResponse(400, "Student not found or already in a team.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found or already in a team."));
 
-            var team = await _dbContext.Teams.FindAsync(model.TeamId);
+            var team = await _unitOfWork.Repository<Team>().FindAsync(t => t.Id == model.TeamId);
             if (team == null)
-                return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
-            var existingInvitation = await _dbContext.Invitations.FirstOrDefaultAsync(i => i.TeamId == model.TeamId && i.StudentId == model.StudentId && i.LeaderId == model.LeaderId && i.Status == "Pending");
+            var existingInvitation = await _unitOfWork.Repository<Invitation>()
+                                                      .FindAsync(i => i.TeamId == model.TeamId &&
+                                                                 i.StudentId == model.StudentId &&
+                                                                 i.LeaderId == model.LeaderId &&
+                                                                 i.Status == StatusType.Pending.ToString());
 
             if (existingInvitation != null)
-                return BadRequest(new ApiResponse(400, "Invitation already exists.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Invitation already exists."));
 
             var invitation = new Invitation
             {
@@ -194,53 +211,36 @@ namespace GradingManagementSystem.APIs.Controllers
                 LeaderId = model.LeaderId,
             };
 
-            await _dbContext.Invitations.AddAsync(invitation);
-            await _dbContext.SaveChangesAsync();
+            await _unitOfWork.Repository<Invitation>().AddAsync(invitation);
+            await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, "Invitation sent successfully.", new
-            {
-                IsSuccess = true,
-                InvitationData = new
-                {
-                    InvitationId = invitation.Id,
-                    TeamId = team.Id,
-                    TeamName = team.Name,
-                    StudentId = student.Id,
-                    StudentName = student.FullName,
-                    LeaderId = currentStudent.Id,
-                    LeaderName = currentStudent.FullName,
-                    InvitationSentDate = invitation.SentDate,
-                    InvitationStatus = invitation.Status
-                }
-            }));
+            return Ok(new ApiResponse(200, "Invitation sent successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested
         [HttpGet("TeamInvitations")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetTeamInvitations()
         {
-            var studentId = User.FindFirst("UserId")?.Value;
-            if (studentId == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+            var studentAppUserId = User.FindFirst("UserId")?.Value;
+            if (studentAppUserId == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var student = await _dbContext.Students.FirstOrDefaultAsync(s => s.AppUserId == studentId);
+            var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentAppUserId);
             if (student == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
-
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
             var invitations = await _dbContext.Invitations
                                     .Include(i => i.Team)
-                                    .ThenInclude(t => t.Students)
-                                    .ThenInclude(s => s.AppUser)
+                                        .ThenInclude(t => t.Students)
+                                            .ThenInclude(s => s.AppUser)
                                     .Include(i => i.Leader)
-                                    .ThenInclude(l => l.AppUser)
+                                        .ThenInclude(l => l.AppUser)
                                     .Where(i => i.StudentId == student.Id && i.Status == StatusType.Pending.ToString())
                                     .ToListAsync();
 
-
-            if (invitations.Count == 0 || !invitations.Any())
-                return NotFound(new ApiResponse(404, "No invitations found.", new { IsSuccess = false }));
+            if (invitations.Count == 0 || !invitations.Any() || invitations == null)
+                return NotFound(CreateErrorResponse404NotFound("No invitations found."));
 
             var result = invitations.Select(i => new TeamInvitationDto
             {
@@ -266,42 +266,46 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team invitations retrieved successfully.", new { IsSuccess = true, Invitations = result }));
         }
 
-        // Finished / Tested
+        // Finished / Reviewed  / Tested
         [HttpPut("ReviewTeamInvitation")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> ReviewTeamInvitation([FromBody] ReviewTeamInvitationDto model)
         {
             if (model.invitationId <= 0)
-                return BadRequest(new ApiResponse(400, "InvitationId is required.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("InvitationId is required."));
             if (model.newStatus != "Accepted" && model.newStatus != "Rejected")
-                return BadRequest(new ApiResponse(400, "Invalid Status Value. Use 'Accepted' or 'Rejected'.", new { IsSuccess = false }));
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid Status Value. Use 'Accepted' or 'Rejected'."));
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
             var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentAppUserId);
             if (student == null)
-                return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
-            if (student.InTeam == true)
-                return BadRequest(new ApiResponse(400, "Student is already in a team.", new { IsSuccess = false }));
+            if (student.InTeam)
+                return BadRequest(CreateErrorResponse400BadRequest("Student is already in a team."));
 
-            var invitation = await _dbContext.Invitations.Include(i => i.Team).FirstOrDefaultAsync(i => i.Id == model.invitationId && i.StudentId == student.Id && i.Status == "Pending");
+            var invitation = await _dbContext.Invitations.Include(i => i.Team)
+                                                         .FirstOrDefaultAsync(i => i.Id == model.invitationId &&
+                                                                              i.StudentId == student.Id &&
+                                                                              i.Status == StatusType.Pending.ToString());
             if (invitation == null)
-                return NotFound(new ApiResponse(404, "Invitation not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Invitation not found."));
 
             var leader = await _unitOfWork.Repository<Student>().FindAsync(s => s.Id == invitation.LeaderId);
             if (leader == null)
-                return NotFound(new ApiResponse(404, "Leader not found.", new { IsSuccess = false }));
+                return NotFound(CreateErrorResponse404NotFound("Leader not found."));
 
-            invitation.Status = model.newStatus;
+            invitation.Status = (model.newStatus == StatusType.Accepted.ToString()) ? StatusType.Accepted.ToString()
+                                                                                  : StatusType.Rejected.ToString();
             invitation.RespondedDate = DateTime.Now;
 
-            if (model.newStatus == "Accepted")
+            if (model.newStatus == StatusType.Accepted.ToString())
             {
-                student.TeamId = invitation.TeamId;
                 student.InTeam = true;
+                student.TeamId = invitation.TeamId;
                 student.LeaderOfTeamId = invitation.LeaderId;
                 _unitOfWork.Repository<Student>().Update(student);
 
@@ -311,7 +315,10 @@ namespace GradingManagementSystem.APIs.Controllers
                     team.Students.Add(student);
                     _unitOfWork.Repository<Team>().Update(team);
                 }
-                var otherInvitations = await _unitOfWork.Repository<Invitation>().FindAllAsync(i => i.StudentId == student.Id && i.Id != model.invitationId && i.Status == "Pending");
+                var otherInvitations = await _unitOfWork.Repository<Invitation>()
+                                                        .FindAllAsync(i => i.StudentId == student.Id &&
+                                                                      i.Id != model.invitationId &&
+                                                                      i.Status == StatusType.Pending.ToString());
 
                 foreach (var otherInvitation in otherInvitations)
                 {

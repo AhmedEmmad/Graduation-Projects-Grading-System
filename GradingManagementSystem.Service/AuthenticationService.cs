@@ -42,7 +42,7 @@ namespace GradingManagementSystem.Service
 
         // Finished / Tested
         public async Task<ApiResponse> RegisterStudentAsync(StudentRegisterDto model)
-        {            
+        {
             var existingAccount = await _userManager.FindByEmailAsync(model.Email);
             if (existingAccount != null)
                 return new ApiResponse(400, $"This email '{model.Email}' is already taken or registered, Please register with another email.", new { IsSuccess = false });
@@ -133,7 +133,7 @@ namespace GradingManagementSystem.Service
         {
             var existingDoctor = await _userManager.FindByEmailAsync(model.Email);
             if (existingDoctor != null)
-                return new ApiResponse(400, $"This email \'{model.Email}\' is already taken/registered, Please register with another email", new { IsSuccess = false });
+                return new ApiResponse(400, $"This email \'{model.Email}\' is already taken or registered, Please register with another email", new { IsSuccess = false });
 
             var newDoctorAppUser = new AppUser
             {
@@ -156,7 +156,7 @@ namespace GradingManagementSystem.Service
             await _unitOfWork.Repository<Doctor>().AddAsync(doctor);
             await _userManager.AddToRoleAsync(newDoctorAppUser, "Doctor");
             await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, $"Doctor registered successfully with ID: '{doctor.Id}'.", new { IsSuccess = true });
+            return new ApiResponse(200, $"Doctor registered successfully.", new { IsSuccess = true });
         }
 
         // Finished / Tested
@@ -272,7 +272,7 @@ namespace GradingManagementSystem.Service
 
             _unitOfWork.Repository<TemporaryUser>().Delete(existingTemporaryUser);
             await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, $"Email verified successfully and user created  with ID: '{newStudent.Id}'.", new { IsSuccess = true });
+            return new ApiResponse(200, $"Email verified and your account created successfully.", new { IsSuccess = true });
         }
 
         // Finished / Tested

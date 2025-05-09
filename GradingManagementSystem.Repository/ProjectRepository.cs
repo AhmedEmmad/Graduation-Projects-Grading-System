@@ -1,4 +1,5 @@
 ﻿using GradingManagementSystem.Core.DTOs;
+using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Repositories.Contact;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
@@ -54,7 +55,7 @@ namespace GradingManagementSystem.Repository
                 }
                 else
                 {
-                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted")
+                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted" && p.Taken == false)
                                                                                     .Include(p => p.Doctor)
                                                                                     .ToListAsync();
 
@@ -112,11 +113,12 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<TeamProjectIdeaDto>?> GetTeamProjectIdeasByStatusAsync(string status)
         {
-            if (status == "Pending")
+            if (status == StatusType.Pending.ToString())
             {
-                var pendingTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == "Pending")
+                var pendingTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Pending.ToString())
                                                                            .Include(p => p.Leader)
                                                                            .Include(p => p.Team)
+                                                                                .ThenInclude(t => t.Supervisor)
                                                                            .ToListAsync();
 
                 return pendingTeamProjects.Select(P => new TeamProjectIdeaDto
@@ -129,14 +131,14 @@ namespace GradingManagementSystem.Repository
                     TeamId = P.TeamId,
                     TeamName = P.Team.Name,
                     LeaderId = P.LeaderId,
-                    LeaderName = P.Leader.FullName,
-                    SupervisorId = P.Team.SupervisorId,
-                    SupervisorName = P.Team.Supervisor?.FullName
+                    LeaderName = P.Leader?.FullName,
+                    SupervisorId = P.Team?.SupervisorId,
+                    SupervisorName = P.Team?.Supervisor?.FullName
                 });
             }
-            else if (status == "Accepted")
+            else if (status == StatusType.Accepted.ToString())
             {
-                var acceptedTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == "Accepted")
+                var acceptedTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Accepted.ToString())
                                                                            .Include(p => p.Leader)
                                                                            .Include(p => p.Team)
                                                                            .ToListAsync();
@@ -152,8 +154,8 @@ namespace GradingManagementSystem.Repository
                     TeamName = P.Team.Name,
                     LeaderId = P.LeaderId,
                     LeaderName = P.Leader.FullName,
-                    SupervisorId = P.Team?.SupervisorId,
-                    SupervisorName = P.Team?.Supervisor.FullName
+                    SupervisorId = P.Team.SupervisorId,
+                    SupervisorName = P.Team.Supervisor.FullName
                 });
             }
             return null;

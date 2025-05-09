@@ -2,7 +2,7 @@
 {
     public class ExaminerDto
     {
-        public int ExaminerId { get; set; }
-        public string ExaminerName { get; set; }
+        public int? ExaminerId { get; set; }
+        public string? ExaminerName { get; set; }
     }
 }

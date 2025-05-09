@@ -22,12 +22,25 @@ namespace GradingManagementSystem.APIs
 
                 builder.Services.AddIdentityServices(builder.Configuration);
 
-                #region CORS Configuation
-                builder.Services.AddCors(options =>
+            //    #region CORS Configuation
+            //    builder.Services.AddCors(options =>
+            //    {
+            //        options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+            //    });
+            //#endregion
+
+            #region CORS Configuation
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("CorsPolicy", policy =>
                 {
-                    options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+                    policy.WithOrigins("http://localhost:4200", "https://graduation-project-angular.vercel.app")
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
                 });
-                #endregion
+            });
+            #endregion
 
             #endregion
 
@@ -55,7 +68,8 @@ namespace GradingManagementSystem.APIs
             #endregion
 
             #region Configuration - (Configure The HTTP Request Pipeline)
-            app.MapHub<NotificationHub>("/notificationHub");
+            
+            app.MapHub<NotificationHub>("/api/notificationHub");
             app.UseMiddleware<ExceptionMiddleware>();
 
             //if (app.Environment.IsDevelopment())

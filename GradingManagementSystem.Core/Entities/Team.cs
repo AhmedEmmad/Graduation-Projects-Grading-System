@@ -6,7 +6,7 @@
         public bool HasProject { get; set; } = false;
         public string? Specialty { get; set; }
 
-        public int LeaderId { get; set; } // Foreign Key Of Id In Student Table
+        public int? LeaderId { get; set; } // Foreign Key Of Id In Student Table
         public int? SupervisorId { get; set; } = null; // Foreign Key Of Id In Doctor Table
 
 

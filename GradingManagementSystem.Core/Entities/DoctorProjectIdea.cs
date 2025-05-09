@@ -6,6 +6,7 @@
         public string Description { get; set; }
         public DateTime SubmissionDate { get; set; } = DateTime.Now;
         public string Status { get; set; } = StatusType.Pending.ToString();
+        public bool Taken { get; set; } = false;
 
         public int DoctorId { get; set; } // Foreign Key Of Id In Doctor Table
 

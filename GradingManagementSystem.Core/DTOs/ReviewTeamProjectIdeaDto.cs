@@ -8,9 +8,9 @@ namespace GradingManagementSystem.Core.DTOs
         public int ProjectId { get; set; }
 
         [Required(ErrorMessage = "NewStatus is required")]
-        public string NewStatus { get; set; }
+        public string? NewStatus { get; set; }
 
         [Required(ErrorMessage = "SupervisorId is required")]
-        public int SupervisorId { get; set; }
+        public int? SupervisorId { get; set; }
     }
 }

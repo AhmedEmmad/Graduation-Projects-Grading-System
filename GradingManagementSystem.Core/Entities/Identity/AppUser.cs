@@ -5,7 +5,7 @@ namespace GradingManagementSystem.Core.Entities.Identity
     // This Class Is Core Identity User For Authentication And Authorization
     public class AppUser : IdentityUser
     {
-        public string FullName { get; set; }
+        public string? FullName { get; set; }
         public string? ProfilePicture { get; set; }
         public string? Specialty { get; set; }
 

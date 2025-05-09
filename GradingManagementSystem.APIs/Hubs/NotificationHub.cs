@@ -1,14 +1,16 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using GradingManagementSystem.Core.Entities;
+using Microsoft.AspNetCore.SignalR;
 
 namespace GradingManagementSystem.APIs.Hubs
 {
     public class NotificationHub : Hub
     {
         private static readonly string[] ValidRoles = { "Doctors", "Students", "All" };
+
         public override async Task OnConnectedAsync()
         {
-            var role = Context.User.IsInRole("Doctor") ? "Doctors" :
-                       Context.User.IsInRole("Student") ? "Students" : null;
+            var role = Context.User?.IsInRole("Doctor") == true ? "Doctors" :
+                       Context.User?.IsInRole("Student") == true ? "Students" : "All";
 
             if (role != null)
             {
@@ -20,8 +22,8 @@ namespace GradingManagementSystem.APIs.Hubs
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            var role = Context.User.IsInRole("Doctor") ? "Doctors" :
-                       Context.User.IsInRole("Student") ? "Students" : null;
+            var role = Context.User?.IsInRole("Doctor") == true ? "Doctors" :
+                       Context.User?.IsInRole("Student") == true ? "Students" : "All";
 
             if (role != null)
             {
@@ -39,14 +41,15 @@ namespace GradingManagementSystem.APIs.Hubs
             }
 
             role = role.Trim();
-            if (!ValidRoles.Contains(role, StringComparer.OrdinalIgnoreCase))
+            if (!ValidRoles.Contains(role))
             {
                 throw new HubException("Invalid recipient type. Must be 'Doctors', 'Students', or 'All'.");
             }
-            string normalizedRole = role.Equals("All", StringComparison.OrdinalIgnoreCase) ? "All" :
-                                   role.Equals("Doctors", StringComparison.OrdinalIgnoreCase) ? "Doctors" : "Students";
+            string normalizedRole = role == NotificationRole.All.ToString() ? NotificationRole.All.ToString() :
+                                   role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString()
+                                   : NotificationRole.Students.ToString();
 
-            if (normalizedRole == "All")
+            if (normalizedRole == NotificationRole.All.ToString())
             {
                 await Clients.All.SendAsync("ReceiveNotification", title, description, normalizedRole);
             }

@@ -18,6 +18,6 @@
         public int? SupervisorId { get; set; }
         public string? SupervisorName { get; set; } // Supervisor Of This Team
         public List<TeamMemberDto> TeamMembers { get; set; }
-        //public List<ExaminerDto> Examiners { get; set; }
+        public List<ExaminerDto> Examiners { get; set; }
     }
 }

@@ -5,9 +5,8 @@
         Pending,
         Accepted,
         Rejected,
-        Completed,
-        Submitted,
-        Approved,
-        InProgress
+        Upcoming,
+        Finished,
+        Completed
     }
 }

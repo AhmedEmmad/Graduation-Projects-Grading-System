@@ -30,7 +30,9 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-            if(result.StatusCode == 404)
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
+            if (result.StatusCode == 404)
                 return NotFound(result);
 
             return Ok(result);
@@ -49,7 +51,9 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-            if(result.StatusCode == 404)
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
+            if (result.StatusCode == 404)
                 return NotFound(result);
 
             return Ok(result);
@@ -86,8 +90,11 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
             if (result.StatusCode == 404)
                 return NotFound(result);
+
             return Ok(result);
         }
 
@@ -103,8 +110,11 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
             if (result.StatusCode == 404)
                 return NotFound(result);
+
             return Ok(result);
         }
 
@@ -120,7 +130,9 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
-            if(result.StatusCode == 404)
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
+            if (result.StatusCode == 404)
                 return NotFound(result);
 
             return Ok(result);
@@ -131,15 +143,18 @@ namespace GradingManagementSystem.APIs.Controllers
         [HttpPost("ResendOtp/{studentEmail}")]
         public async Task<IActionResult> ResendOtpCodeVerification(string studentEmail)
         {
-            if(studentEmail == null)
+            if(string.IsNullOrEmpty(studentEmail))
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new {IsSuccess = false }));
 
             var result = await _authService.ResendOtpAsync(studentEmail);
 
             if (result.StatusCode == 400)
                 return BadRequest(result);
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
             if (result.StatusCode == 404)
                 return NotFound(result);
+
             return Ok(result);
         }
     }

@@ -5,9 +5,9 @@ namespace GradingManagementSystem.Core.Entities
     // storing instructions.
     public class Notification : BaseEntity
     {
-        public string Title { get; set; }
-        public string Description { get; set; }
-        public string Role { get; set; } // Doctors or Students or All
+        public string? Title { get; set; }
+        public string? Description { get; set; }
+        public string? Role { get; set; } // Doctors or Students or All
         public bool IsRead { get; set; } = false;
         public DateTime SentAt { get; set; } = DateTime.Now;
         

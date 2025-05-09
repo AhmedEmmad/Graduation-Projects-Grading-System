@@ -20,7 +20,7 @@ namespace GradingManagementSystem.Repository
             if (role == null)
                 return Enumerable.Empty<NotificationResponseDto>();
 
-            else if (role.Equals("All", StringComparison.OrdinalIgnoreCase))
+            else if (role == NotificationRole.All.ToString())
             {
                 var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
@@ -34,9 +34,9 @@ namespace GradingManagementSystem.Repository
                     AdminId = notification.AdminId
                 });
             }
-            else if (role.Equals("Students", StringComparison.OrdinalIgnoreCase))
+            else if (role == NotificationRole.Students.ToString())
             {
-                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Students.ToString() && n.Role == NotificationRole.All.ToString()).ToListAsync();
+                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Students.ToString() || n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
                 {
                     Id = notification.Id,
@@ -50,7 +50,7 @@ namespace GradingManagementSystem.Repository
             }
             else 
             {
-                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Doctors.ToString() && n.Role == NotificationRole.All.ToString()).ToListAsync();
+                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Doctors.ToString() || n.Role == NotificationRole.All.ToString()).ToListAsync();
                 return notifications.Select(notification => new NotificationResponseDto
                 {
                     Id = notification.Id,

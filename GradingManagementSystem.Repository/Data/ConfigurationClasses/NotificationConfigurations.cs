@@ -8,7 +8,7 @@ namespace GradingManagementSystem.Repository.Data.ConfigurationClasses
     {
         public void Configure(EntityTypeBuilder<Notification> builder)
         {
-            builder.HasIndex(N => N.Title).IsUnique();
+            //builder.HasIndex(N => N.Title).IsUnique();
            
             builder.HasOne(N => N.Admin)
                    .WithMany(A => A.Notifications)

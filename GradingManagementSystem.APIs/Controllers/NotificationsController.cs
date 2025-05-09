@@ -7,6 +7,7 @@ using GradingManagementSystem.Core.DTOs;
 using GradingManagementSystem.Core;
 using Microsoft.AspNetCore.Authorization;
 using GradingManagementSystem.Core.Repositories.Contact;
+using System.Data;
 
 namespace GradingManagementSystem.APIs.Controllers
 {
@@ -49,11 +50,12 @@ namespace GradingManagementSystem.APIs.Controllers
             
             var newNotification = new Notification
             {
-                Title = model.Title,
-                Description = model.Description,
-                Role = model.Role.Equals("All", StringComparison.OrdinalIgnoreCase) ? "All" :
-                       model.Role.Equals("Doctors", StringComparison.OrdinalIgnoreCase) ? "Doctors" : "Students",
-                AdminId = admin.Id
+                Title = model?.Title,
+                Description = model?.Description,
+                Role = model?.Role == NotificationRole.All.ToString() ? NotificationRole.All.ToString() :
+                       model?.Role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString() 
+                       : NotificationRole.Students.ToString(),
+                AdminId = admin?.Id
             };
 
             await _unitOfWork.Repository<Notification>().AddAsync(newNotification);
@@ -81,7 +83,7 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentNotifications()
         {
-            var studentNotifications = await _notificationRepository.GetNotificationsByRoleAsync("Students");
+            var studentNotifications = await _notificationRepository.GetNotificationsByRoleAsync(NotificationRole.Students.ToString());
             if (studentNotifications == null || !studentNotifications.Any())
                 return NotFound(new ApiResponse(404, "No notifications found for students.", new { IsSuccess = false }));
 
@@ -93,7 +95,7 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetDoctorNotifications()
         {
-            var doctorNotifications = await _notificationRepository.GetNotificationsByRoleAsync("Doctors");
+            var doctorNotifications = await _notificationRepository.GetNotificationsByRoleAsync(NotificationRole.Doctors.ToString());
             if (doctorNotifications == null || !doctorNotifications.Any())
                 return NotFound(new ApiResponse(404, "No notifications found for doctors.", new { IsSuccess = false }));
 

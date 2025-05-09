@@ -7,7 +7,6 @@ namespace GradingManagementSystem.Core.Services.Contact
     {
         Task<ApiResponse> GetUserProfileAsync(string userId, string userRole, string timezoneId);
         Task<ApiResponse> ChangeUsernameAsync(string newUsername, string userId, string userRole);
-        Task<ApiResponse> ChangeEmailAsync(string newEmail, string userId, string userRole);
         Task<ApiResponse> ChangePasswordAsync(string oldPassword, string newPassword, string userId);
         Task<ApiResponse> ChangeProfilePictureAsync(IFormFile newProfilePicture, string userId);
     }

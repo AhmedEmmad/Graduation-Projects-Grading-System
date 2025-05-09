@@ -109,55 +109,6 @@ namespace GradingManagementSystem.Service
             return new ApiResponse(200, "Username changed successfully.", new { IsSuccess = true });
         }
 
-        public async Task<ApiResponse> ChangeEmailAsync(string newEmail, string userId, string userRole)
-        {
-            var existingUser = await _userProfileRepository.GetAppUserAsync(userId);
-            if (existingUser == null)
-                return new ApiResponse(404, "User not found.", new { IsSuccess = false });
-
-            if (existingUser.Email == newEmail)
-                return new ApiResponse(400, "New email is the same as the current one. Please choose another one.", new { IsSuccess = false });
-
-            if (userRole == "Admin")
-            {
-                var admin = await _unitOfWork.Repository<Admin>().FindAsync(a => a.AppUserId == userId);
-                if (admin.Email == newEmail)
-                    return new ApiResponse(400, "New email is the same as the current one. Please choose another one.", new { IsSuccess = false });
-                existingUser.Email = newEmail;
-                admin.Email = newEmail;
-                _userProfileRepository.Update(existingUser);
-                _unitOfWork.Repository<Admin>().Update(admin);
-            }
-            else if (userRole == "Doctor")
-            {
-                var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.AppUserId == userId);
-                if (doctor.Email == newEmail)
-                    return new ApiResponse(400, "New email is the same as the current one. Please choose another one.", new { IsSuccess = false });
-                existingUser.Email = newEmail;
-                doctor.Email = newEmail;
-                _userProfileRepository.Update(existingUser);
-                _unitOfWork.Repository<Doctor>().Update(doctor);
-            }
-            else if (userRole == "Student")
-            {
-                var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == userId);
-                if (student.Email == newEmail)
-                    return new ApiResponse(400, "New email is the same as the current one. Please choose another one.", new { IsSuccess = false });
-                existingUser.Email = newEmail;
-                student.Email = newEmail;
-                _userProfileRepository.Update(existingUser);
-                _unitOfWork.Repository<Student>().Update(student);
-            }
-            else
-            {
-                return new ApiResponse(400, "Invalid user role.", new { IsSuccess = false });
-            }
-            await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, "Email changed successfully.", new { IsSuccess = true });
-
-
-        }
-
         public async Task<ApiResponse> ChangePasswordAsync(string oldPassword, string newPassword, string userId)
         {
             var existingUser = await _userProfileRepository.GetAppUserAsync(userId);

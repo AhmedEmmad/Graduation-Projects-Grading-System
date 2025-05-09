@@ -1,4 +1,6 @@
-﻿using GradingManagementSystem.Core.Entities;
+﻿using GradingManagementSystem.Core.DTOs;
+using GradingManagementSystem.Core.Entities;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GradingManagementSystem.APIs.Hubs
@@ -33,29 +35,28 @@ namespace GradingManagementSystem.APIs.Hubs
             await base.OnDisconnectedAsync(exception);
         }
 
-        public async Task SendNotification(string title, string description, string role)
+        public async Task SendNotification(NotificationResponseDto model)
         {
-            if (string.IsNullOrWhiteSpace(title) || string.IsNullOrWhiteSpace(description) || string.IsNullOrWhiteSpace(role))
+            if (model is null || string.IsNullOrEmpty(model.Title)
+                              || string.IsNullOrEmpty(model.Description)
+                              || string.IsNullOrEmpty(model.Role))
             {
-                throw new HubException("Title, Description, and Role cannot be empty.");
+                throw new HubException("Invalid notification data.");
             }
 
-            role = role.Trim();
-            if (!ValidRoles.Contains(role))
+            string normalizedRole = model.Role.Trim();
+            if (!ValidRoles.Contains(normalizedRole))
             {
                 throw new HubException("Invalid recipient type. Must be 'Doctors', 'Students', or 'All'.");
             }
-            string normalizedRole = role == NotificationRole.All.ToString() ? NotificationRole.All.ToString() :
-                                   role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString()
-                                   : NotificationRole.Students.ToString();
 
             if (normalizedRole == NotificationRole.All.ToString())
             {
-                await Clients.All.SendAsync("ReceiveNotification", title, description, normalizedRole);
+                await Clients.All.SendAsync("ReceiveNotification", model);
             }
             else
             {
-                await Clients.Group(normalizedRole).SendAsync("ReceiveNotification", title, description, normalizedRole);
+                await Clients.Group(normalizedRole).SendAsync("ReceiveNotification", model);
             }
         }
     }

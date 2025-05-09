@@ -61,7 +61,17 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.Repository<Notification>().AddAsync(newNotification);
             await _unitOfWork.CompleteAsync();
 
-            await _hubContext.Clients.Group(newNotification.Role).SendAsync("ReceiveNotification", newNotification.Title, newNotification.Description, newNotification.Role);
+            var notificationDto = new NotificationResponseDto
+            {
+                Id = newNotification.Id,
+                Title = newNotification.Title,
+                Description = newNotification.Description,
+                Role = newNotification.Role,
+                IsRead = newNotification.IsRead,
+                SentAt = newNotification.SentAt
+            };
+
+            await _hubContext.Clients.Group(newNotification.Role).SendAsync("ReceiveNotification", notificationDto);
 
             return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
         }

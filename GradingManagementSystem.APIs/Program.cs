@@ -22,11 +22,11 @@ namespace GradingManagementSystem.APIs
 
                 builder.Services.AddIdentityServices(builder.Configuration);
 
-            //    #region CORS Configuation
-            //    builder.Services.AddCors(options =>
-            //    {
-            //        options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
-            //    });
+            //#region CORS Configuation
+            //builder.Services.AddCors(options =>
+            //{
+            //    options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+            //});
             //#endregion
 
             #region CORS Configuation

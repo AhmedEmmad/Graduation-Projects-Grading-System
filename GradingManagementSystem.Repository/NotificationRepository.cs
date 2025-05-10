@@ -20,48 +20,19 @@ namespace GradingManagementSystem.Repository
             if (role == null)
                 return Enumerable.Empty<NotificationResponseDto>();
 
-            else if (role == NotificationRole.All.ToString())
+            var notifications = await _dbContext.Notifications
+           .Where(n => n.Role == role)
+           .ToListAsync();
+            return notifications.Select(notification => new NotificationResponseDto
             {
-                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.All.ToString()).ToListAsync();
-                return notifications.Select(notification => new NotificationResponseDto
-                {
-                    Id = notification.Id,
-                    Title = notification.Title,
-                    Description = notification.Description,
-                    Role = notification.Role,
-                    IsRead = notification.IsRead,
-                    SentAt = notification.SentAt,
-                    AdminId = notification.AdminId
-                });
-            }
-            else if (role == NotificationRole.Students.ToString())
-            {
-                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Students.ToString() || n.Role == NotificationRole.All.ToString()).ToListAsync();
-                return notifications.Select(notification => new NotificationResponseDto
-                {
-                    Id = notification.Id,
-                    Title = notification.Title,
-                    Description = notification.Description,
-                    Role = notification.Role,
-                    IsRead = notification.IsRead,
-                    SentAt = notification.SentAt,
-                    AdminId = notification.AdminId
-                });
-            }
-            else 
-            {
-                var notifications = await _dbContext.Notifications.Where(n => n.Role == NotificationRole.Doctors.ToString() || n.Role == NotificationRole.All.ToString()).ToListAsync();
-                return notifications.Select(notification => new NotificationResponseDto
-                {
-                    Id = notification.Id,
-                    Title = notification.Title,
-                    Description = notification.Description,
-                    Role = notification.Role,
-                    IsRead = notification.IsRead,
-                    SentAt = notification.SentAt,
-                    AdminId = notification.AdminId
-                });
-            }
+                Id = notification.Id,
+                Title = notification.Title,
+                Description = notification.Description,
+                Role = notification.Role,
+                IsRead = notification.IsRead,
+                SentAt = notification.SentAt,
+                AdminId = notification.AdminId
+            });
         }
     }
 }

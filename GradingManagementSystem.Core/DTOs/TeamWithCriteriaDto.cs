@@ -7,6 +7,7 @@
         public int ProjectId { get; set; }
         public string? ProjectName { get; set; }
         public string? ProjectDescription { get; set; }
+        public string? Specialty { get; set; }
         public int? ScheduleId { get; set; }
         public DateTime? ScheduleDate { get; set; }
         public string? ScheduleStatus { get; set; } // "Upcoming", "InProgress", "Completed"

@@ -249,7 +249,6 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Schedule created successfully for this team .", new { IsSuccess = true }));
         }
 
-
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {
             return new ApiResponse(400, message, new { IsSuccess = false });

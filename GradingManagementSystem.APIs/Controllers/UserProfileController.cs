@@ -72,14 +72,16 @@ namespace GradingManagementSystem.APIs.Controllers
             if (string.IsNullOrEmpty(userRole))
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var response = await _userProfileService.ChangeUsernameAsync(model.NewUsername, userId, userRole);
+            var responseResult = await _userProfileService.ChangeUsernameAsync(model.NewUsername, userId, userRole);
 
-            if (response.StatusCode == 404)
-                return NotFound(response);
-            if (response.StatusCode == 400)
-                return BadRequest(response);
+            if (responseResult.StatusCode == 400)
+                return BadRequest(responseResult);
+            if (responseResult.StatusCode == 401)
+                return Unauthorized(responseResult);
+            if (responseResult.StatusCode == 404)
+                return NotFound(responseResult);
 
-            return Ok(response);
+            return Ok(responseResult);
         }
 
         [HttpPut("ChangePassword")]
@@ -92,18 +94,20 @@ namespace GradingManagementSystem.APIs.Controllers
             var userId = User.FindFirst("UserId")?.Value;
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (string.IsNullOrEmpty(userId))
-                return Unauthorized(new ApiResponse(401, "Unauthorized user."));
+                return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
             if (string.IsNullOrEmpty(userRole))
-                return Unauthorized(new ApiResponse(401, "Unauthorized access."));
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var response = await _userProfileService.ChangePasswordAsync(model.CurrentPassword, model.NewPassword, userId);
+            var responseResult = await _userProfileService.ChangePasswordAsync(model.CurrentPassword, model.NewPassword, userId);
 
-            if (response.StatusCode == 404)
-                return NotFound(response);
-            if (response.StatusCode == 400)
-                return BadRequest(response);
+            if (responseResult.StatusCode == 400)
+                return BadRequest(responseResult);
+            if (responseResult.StatusCode == 401)
+                return Unauthorized(responseResult);
+            if (responseResult.StatusCode == 404)
+                return NotFound(responseResult);
 
-            return Ok(response);
+            return Ok(responseResult);
         }
 
         [HttpPut("ChangeProfilePicture")]

@@ -316,6 +316,7 @@ namespace GradingManagementSystem.APIs.Controllers
                             ProjectId = t.FinalProjectIdea.ProjectId,
                             ProjectName = t.FinalProjectIdea.ProjectName,
                             ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                            Specialty = t.Specialty,
                             ScheduleId = t.Schedules.FirstOrDefault()?.Id,
                             ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
                             ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
@@ -384,8 +385,15 @@ namespace GradingManagementSystem.APIs.Controllers
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
-                var isSupervisor = schedule.TeamId == teamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == doctor.Id && cds.ScheduleId == scheduleId);
-                var isExaminer = schedule.TeamId == teamId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner" && cds.DoctorId == doctor.Id && cds.ScheduleId == scheduleId);
+                var isSupervisor = schedule.TeamId == teamId &&
+                                   doctor.Id == schedule.Team.SupervisorId &&
+                                   schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" &&
+                                                                         cds.DoctorId == doctor.Id &&
+                                                                         cds.ScheduleId == scheduleId);
+                var isExaminer = schedule.TeamId == teamId &&
+                                 schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner" &&
+                                                                       cds.DoctorId == doctor.Id &&
+                                                                       cds.ScheduleId == scheduleId);
 
                 if (isSupervisor)
                     evaluatorRole = "Supervisor";
@@ -402,7 +410,11 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 existingEvaluations = await _dbContext.Evaluations
                                                     .Include(e => e.Criteria)
-                                                    .Where(e => e.TeamId == teamId && e.ScheduleId == scheduleId && e.AdminEvaluatorId == evaluatorId && e.DoctorEvaluatorId == null && e.EvaluatorRole == evaluatorRole)
+                                                    .Where(e => e.TeamId == teamId &&
+                                                           e.ScheduleId == scheduleId &&
+                                                           e.AdminEvaluatorId == evaluatorId &&
+                                                           e.DoctorEvaluatorId == null &&
+                                                           e.EvaluatorRole == evaluatorRole)
                                                     .AsNoTracking()
                                                     .ToListAsync();
             }
@@ -410,7 +422,11 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 existingEvaluations = await _dbContext.Evaluations
                                                     .Include(e => e.Criteria)
-                                                    .Where(e => e.TeamId == teamId && e.ScheduleId == scheduleId && e.AdminEvaluatorId == null && e.DoctorEvaluatorId == evaluatorId && e.EvaluatorRole == evaluatorRole)
+                                                    .Where(e => e.TeamId == teamId &&
+                                                           e.ScheduleId == scheduleId &&
+                                                           e.AdminEvaluatorId == null &&
+                                                           e.DoctorEvaluatorId == evaluatorId &&
+                                                           e.EvaluatorRole == evaluatorRole)
                                                     .AsNoTracking()
                                                     .ToListAsync();
             }

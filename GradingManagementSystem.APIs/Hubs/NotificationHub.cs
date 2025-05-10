@@ -9,14 +9,28 @@ namespace GradingManagementSystem.APIs.Hubs
     {
         private static readonly string[] ValidRoles = { "Doctors", "Students", "All" };
 
+        // This method allows clients to join a specific group
+        public async Task JoinGroup(string groupName)
+        {
+            if (string.IsNullOrEmpty(groupName) || !ValidRoles.Contains(groupName))
+            {
+                throw new HubException("Invalid group name. Must be 'Doctors', 'Students', or 'All'.");
+            }
+
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        }
+
         public override async Task OnConnectedAsync()
         {
-            var role = Context.User?.IsInRole("Doctor") == true ? "Doctors" :
-                       Context.User?.IsInRole("Student") == true ? "Students" : "All";
-
-            if (role != null)
+            if (Context.User?.Identity?.IsAuthenticated == true)
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, role);
+                await Groups.AddToGroupAsync(Context.ConnectionId, "All");
+
+                if (Context.User.IsInRole("Doctor"))
+                    await Groups.AddToGroupAsync(Context.ConnectionId, "Doctors");
+
+                else if (Context.User.IsInRole("Student"))
+                    await Groups.AddToGroupAsync(Context.ConnectionId, "Students");
             }
 
             await base.OnConnectedAsync();
@@ -24,12 +38,15 @@ namespace GradingManagementSystem.APIs.Hubs
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            var role = Context.User?.IsInRole("Doctor") == true ? "Doctors" :
-                       Context.User?.IsInRole("Student") == true ? "Students" : "All";
-
-            if (role != null)
+            if (Context.User?.Identity?.IsAuthenticated == true)
             {
-                await Groups.RemoveFromGroupAsync(Context.ConnectionId, role);
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, "All");
+
+                if (Context.User.IsInRole("Doctor"))
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Doctors");
+
+                else if (Context.User.IsInRole("Student"))
+                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, "Students");
             }
 
             await base.OnDisconnectedAsync(exception);
@@ -50,14 +67,7 @@ namespace GradingManagementSystem.APIs.Hubs
                 throw new HubException("Invalid recipient type. Must be 'Doctors', 'Students', or 'All'.");
             }
 
-            if (normalizedRole == NotificationRole.All.ToString())
-            {
-                await Clients.All.SendAsync("ReceiveNotification", model);
-            }
-            else
-            {
-                await Clients.Group(normalizedRole).SendAsync("ReceiveNotification", model);
-            }
+            await Clients.Group(normalizedRole).SendAsync("ReceiveNotification", model);
         }
     }
 }

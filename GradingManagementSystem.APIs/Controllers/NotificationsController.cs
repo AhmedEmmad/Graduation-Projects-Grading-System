@@ -34,33 +34,55 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SendNotification([FromBody] NotificationDto model)
         {
-            if (model == null || string.IsNullOrWhiteSpace(model.Title) || string.IsNullOrWhiteSpace(model.Description) || string.IsNullOrWhiteSpace(model.Role))
-                return BadRequest(new ApiResponse(400, "Title, Description, And Role are required.", new { IsSuccess = false }));
-            
-            if (!ValidRoles.Contains(model.Role, StringComparer.OrdinalIgnoreCase))
-                return BadRequest(new ApiResponse(400, "Invalid Role. Must be 'Doctors', 'Students', or 'All'.", new { IsSuccess = false }));
+            // Log the incoming notification data
+            Console.WriteLine("Notification received via API");
+            Console.WriteLine($"Title: {model?.Title}, Description: {model?.Description}, Role: {model?.Role}");
 
+            if (model == null || string.IsNullOrWhiteSpace(model.Title) || string.IsNullOrWhiteSpace(model.Description) || string.IsNullOrWhiteSpace(model.Role))
+            {
+                Console.WriteLine("Invalid data received: Title, Description, and Role are required.");
+
+                return BadRequest(new ApiResponse(400, "Title, Description, And Role are required.", new { IsSuccess = false }));
+            }
+
+            // Validation for valid roles
+            if (!ValidRoles.Contains(model.Role, StringComparer.OrdinalIgnoreCase))
+            {
+                Console.WriteLine($"Invalid role: {model.Role}. Must be 'Doctors', 'Students', or 'All'.");
+                return BadRequest(new ApiResponse(400, "Invalid Role. Must be 'Doctors', 'Students', or 'All'.", new { IsSuccess = false }));
+            }
+
+            // Retrieve admin information
             var adminAppUserId = User.FindFirst("UserId")?.Value;
             if (adminAppUserId == null)
+            {
+                Console.WriteLine("Admin ID not found in the request.");
                 return BadRequest(new ApiResponse(400, "Invalid admin id.", new { IsSuccess = false }));
+            }
 
             var admin = await _unitOfWork.Repository<Admin>().FindAsync(A => A.AppUserId == adminAppUserId);
             if (admin == null)
+            {
+                Console.WriteLine($"Admin not found with ID: {adminAppUserId}");
                 return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
-            
+            }
+
+            // Create new notification
             var newNotification = new Notification
             {
                 Title = model?.Title,
                 Description = model?.Description,
                 Role = model?.Role == NotificationRole.All.ToString() ? NotificationRole.All.ToString() :
-                       model?.Role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString() 
+                       model?.Role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString()
                        : NotificationRole.Students.ToString(),
                 AdminId = admin?.Id
             };
 
+            // Save notification in the database
             await _unitOfWork.Repository<Notification>().AddAsync(newNotification);
             await _unitOfWork.CompleteAsync();
 
+            // Map to NotificationResponseDto for sending
             var notificationDto = new NotificationResponseDto
             {
                 Id = newNotification.Id,
@@ -71,9 +93,11 @@ namespace GradingManagementSystem.APIs.Controllers
                 SentAt = newNotification.SentAt
             };
 
+            // Log the sending of notification
+            Console.WriteLine($"Sending notification to group: {newNotification.Role}");
             await _hubContext.Clients.Group(newNotification.Role).SendAsync("ReceiveNotification", notificationDto);
 
-            return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
+                return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
         }
         
         // Finished / Reviewed / Tested
@@ -83,7 +107,10 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             var notifications = await _notificationRepository.GetNotificationsByRoleAsync("All");
             if (notifications == null || !notifications.Any())
+            {
+                Console.WriteLine("No notifications found for 'All' role.");
                 return NotFound(new ApiResponse(404, "No notifications found.", new { IsSuccess = false }));
+            }
 
             return Ok(new ApiResponse(200, "Notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
@@ -93,11 +120,14 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentNotifications()
         {
-            var studentNotifications = await _notificationRepository.GetNotificationsByRoleAsync(NotificationRole.Students.ToString());
-            if (studentNotifications == null || !studentNotifications.Any())
+            var notifications = await _notificationRepository.GetNotificationsByRoleAsync("Students");
+            if (notifications == null || !notifications.Any())
+            {
+                Console.WriteLine("No notifications found for 'Student' role.");
                 return NotFound(new ApiResponse(404, "No notifications found for students.", new { IsSuccess = false }));
+            }
 
-            return Ok(new ApiResponse(200, "Student notifications retrieved successfully.", new { IsSuccess = true, studentNotifications }));
+            return Ok(new ApiResponse(200, "Student notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
         // Finished / Reviewed / Tested
@@ -105,11 +135,14 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetDoctorNotifications()
         {
-            var doctorNotifications = await _notificationRepository.GetNotificationsByRoleAsync(NotificationRole.Doctors.ToString());
-            if (doctorNotifications == null || !doctorNotifications.Any())
+            var notifications = await _notificationRepository.GetNotificationsByRoleAsync("Doctors");
+            if (notifications == null || !notifications.Any())
+            {
+                Console.WriteLine("No notifications found for 'Doctor' role.");
                 return NotFound(new ApiResponse(404, "No notifications found for doctors.", new { IsSuccess = false }));
+            }
 
-            return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", new { IsSuccess = true, doctorNotifications }));
+            return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
         // Finished / Reviewed / Tested

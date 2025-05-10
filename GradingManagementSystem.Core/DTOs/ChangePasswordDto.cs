@@ -1,15 +1,14 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace GradingManagementSystem.Core.DTOs
 {
     public class ChangePasswordDto
     {
-        public string CurrentPassword { get; set; }
-        public string NewPassword { get; set; }
+        [Required(ErrorMessage = "CurrentPassword is required.")]
+        public string? CurrentPassword { get; set; }
+
+        [Required(ErrorMessage = "NewPassword is required.")]
+        public string? NewPassword { get; set; }
     }
 
 }

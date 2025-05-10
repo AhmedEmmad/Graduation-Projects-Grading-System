@@ -87,14 +87,14 @@ namespace GradingManagementSystem.APIs.Controllers
         }
 
         // Finished / Reviewed / Tested
-        [HttpPut("SetActiveYear/{appointmentId}")]
+        [HttpPut("SetActiveYear")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> SetActiveAcademicYearAppointment(int appointmentId)
+        public async Task<IActionResult> SetActiveAcademicYearAppointment([FromBody] SetActiveYearDto model)
         {
-            if (appointmentId <= 0)
+            if (model.AppointmentId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid appointment ID."));
 
-            var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Id == appointmentId);
+            var academicAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Id == model.AppointmentId);
             if (academicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("Academic appointment not found."));
 
@@ -104,7 +104,7 @@ namespace GradingManagementSystem.APIs.Controllers
             academicAppointment.Status = "Active";
             academicAppointment.LastUpdatedAt = DateTime.Now;
             _dbContext.AcademicAppointments.Update(academicAppointment);
-            var remainingAcademicAppointments = await _dbContext.AcademicAppointments.Where(a => a.Id != appointmentId).ToListAsync();
+            var remainingAcademicAppointments = await _dbContext.AcademicAppointments.Where(a => a.Id != model.AppointmentId).ToListAsync();
             foreach (var appointment in remainingAcademicAppointments)
             {
                 appointment.Status = "Inactive";

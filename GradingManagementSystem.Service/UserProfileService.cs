@@ -137,7 +137,7 @@ namespace GradingManagementSystem.Service
                 return new ApiResponse(404, "User not found.", new { IsSuccess = false });
 
             var profilePicturePath = string.Empty;
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/ChangedProfilePictures");
+            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students");
             Directory.CreateDirectory(uploadsFolder);
 
             var uniqueFileName = $"{Guid.NewGuid()}_{newProfilePicture.FileName}";
@@ -148,7 +148,7 @@ namespace GradingManagementSystem.Service
                 await newProfilePicture.CopyToAsync(stream);
             }
 
-            profilePicturePath = $"{_configuration["ApiBaseUrl"]}ChangedProfilePictures/{uniqueFileName}";
+            profilePicturePath = $"{_configuration["ApiBaseUrl"]}Students/ProfilePictures/{uniqueFileName}";
 
             existingUser.ProfilePicture = profilePicturePath;
             _userProfileRepository.Update(existingUser);

@@ -7,7 +7,7 @@ using System.Security.Claims;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using GradingManagementSystem.Core.Entities;
-using System.Linq;
+using OfficeOpenXml;
 
 namespace GradingManagementSystem.APIs.Controllers
 {
@@ -494,143 +494,76 @@ namespace GradingManagementSystem.APIs.Controllers
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
                 var isSupervisor = schedule.TeamId == model.TeamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id);
-                var isExaminer = schedule.TeamId == model.TeamId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner" && cds.Id == schedule.Id && cds.DoctorId == doctor.Id);
+                var isExaminer = schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner");
 
                 if (isSupervisor)
                     evaluatorRole = "Supervisor";
                 else if (isExaminer)
                     evaluatorRole = "Examiner";
                 else
-                    return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false }));
+                    return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false, ExaminerId = doctor.Id }));
 
                 evaluatorId = doctor.Id;
             }
 
-            if (evaluatorRole == "Admin")
+            foreach (var gradeItem in model.Grades)
             {
-                if (model.StudentId == null)
+                // Check if an evaluation with the same grade already exists
+                var existingEvaluation = await _dbContext.Evaluations
+                    .FirstOrDefaultAsync(e => e.ScheduleId == model.ScheduleId &&
+                                              e.CriteriaId == gradeItem.CriteriaId &&
+                                              e.TeamId == model.TeamId &&
+                                              e.StudentId == model.StudentId &&
+                                              e.EvaluatorRole == evaluatorRole &&
+                                              (e.AdminEvaluatorId == evaluatorId || e.AdminEvaluatorId == null) &&
+                                              (e.DoctorEvaluatorId == evaluatorId || e.DoctorEvaluatorId == null));
+
+                if (existingEvaluation != null)
                 {
-                    // Team Evaluation
-                    foreach (var gradeItem in model.Grades)
+                    // Check if the grade has been modified
+                    if (existingEvaluation.Grade != gradeItem.Grade)
                     {
-                        var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
-                        if (criteria == null)
-                            return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        var newEvaluation = new Evaluation
-                        {
-                            ScheduleId = model.ScheduleId,
-                            CriteriaId = gradeItem.CriteriaId,
-                            DoctorEvaluatorId = null,
-                            AdminEvaluatorId = evaluatorId,
-                            EvaluatorRole = evaluatorRole,
-                            StudentId = null,
-                            TeamId = model.TeamId,
-                            Grade = gradeItem.Grade,
-                        };
-
-                        await _dbContext.Evaluations.AddAsync(newEvaluation);
+                        existingEvaluation.Grade = gradeItem.Grade;
+                        _dbContext.Evaluations.Update(existingEvaluation);
                     }
                 }
                 else
                 {
-                    // Individual Student Evaluation
-                    foreach (var gradeItem in model.Grades)
+                    // Proceed to add the new evaluation
+                    var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
+                    if (criteria == null)
+                        return NotFound(new ApiResponse(404, $"Criteria not found.", new { IsSuccess = false }));
+
+                    if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
+                        return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
+
+                    var newEvaluation = new Evaluation
                     {
-                        var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
-                        if (criteria == null)
-                            return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
+                        ScheduleId = model.ScheduleId,
+                        CriteriaId = gradeItem.CriteriaId,
+                        DoctorEvaluatorId = appUserRole == "Doctor" ? evaluatorId : null,
+                        AdminEvaluatorId = appUserRole == "Admin" ? evaluatorId : null,
+                        EvaluatorRole = evaluatorRole,
+                        StudentId = model.StudentId,
+                        TeamId = model.TeamId,
+                        Grade = gradeItem.Grade,
+                    };
 
-                        if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        var newEvaluation = new Evaluation
-                        {
-                            ScheduleId = model.ScheduleId,
-                            CriteriaId = gradeItem.CriteriaId,
-                            DoctorEvaluatorId = null,
-                            AdminEvaluatorId = evaluatorId,
-                            EvaluatorRole = evaluatorRole,
-                            StudentId = model.StudentId,
-                            TeamId = model.TeamId,
-                            Grade = gradeItem.Grade,
-                        };
-                        await _dbContext.Evaluations.AddAsync(newEvaluation);
-                    }
+                    await _dbContext.Evaluations.AddAsync(newEvaluation);
                 }
             }
-            else
+
+            await _dbContext.SaveChangesAsync();
+
+            var committeeDoctorSchedule = await _dbContext.CommitteeDoctorSchedules.FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId);
+
+            if (committeeDoctorSchedule != null)
             {
-                if (model.StudentId == null)
-                {
-                    // Team Evaluation
-                    foreach (var gradeItem in model.Grades)
-                    {
-                        var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
-                        if (criteria == null)
-                            return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        var newEvaluation = new Evaluation
-                        {
-                            ScheduleId = model.ScheduleId,
-                            CriteriaId = gradeItem.CriteriaId,
-                            DoctorEvaluatorId = evaluatorId,
-                            AdminEvaluatorId = null,
-                            EvaluatorRole = evaluatorRole,
-                            StudentId = null,
-                            TeamId = model.TeamId,
-                            Grade = gradeItem.Grade,
-                        };
-
-                        await _dbContext.Evaluations.AddAsync(newEvaluation);
-                    }
-                }
-                else
-                {
-                    // Individual Student Evaluation
-                    foreach (var gradeItem in model.Grades)
-                    {
-                        var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
-                        if (criteria == null)
-                            return NotFound(new ApiResponse(404, $"Criteria not found with ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                            return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range for criteria ID: '{gradeItem.CriteriaId}'.", new { IsSuccess = false }));
-
-                        var newEvaluation = new Evaluation
-                        {
-                            ScheduleId = model.ScheduleId,
-                            CriteriaId = gradeItem.CriteriaId,
-                            DoctorEvaluatorId = evaluatorId,
-                            AdminEvaluatorId = null,
-                            EvaluatorRole = evaluatorRole,
-                            StudentId = model.StudentId,
-                            TeamId = model.TeamId,
-                            Grade = gradeItem.Grade,
-                        };
-                        await _dbContext.Evaluations.AddAsync(newEvaluation);
-                    }
-                }
-                await _dbContext.SaveChangesAsync();
-
-                // Mark HasCompletedEvaluation as true for the relevant CommitteeDoctorSchedules
-                var committeeDoctorSchedules = await _dbContext.CommitteeDoctorSchedules
-                    .Where(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId && cds.DoctorRole == evaluatorRole)
-                    .ToListAsync();
-
-                foreach (var cds in committeeDoctorSchedules)
-                {
-                    cds.HasCompletedEvaluation = true;
-                }
-
-                await _dbContext.SaveChangesAsync();
+                committeeDoctorSchedule.HasCompletedEvaluation = true;
+                _dbContext.CommitteeDoctorSchedules.Update(committeeDoctorSchedule);
             }
+
+            await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Grades submitted successfully.", new { IsSuccess = true }));
         }
@@ -733,6 +666,231 @@ namespace GradingManagementSystem.APIs.Controllers
                 .ToList();
 
             return Ok(new ApiResponse(200, "Student grades retrieved successfully.", new { IsSuccess = true, Grades = combinedEvaluations }));
+        }
+
+
+        [HttpGet("ExportGradesForSpecialty/{specialty}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ExportGradesForSpecialty(string specialty)
+        {
+            var adminAppUserId = User.FindFirst("UserId")?.Value;
+            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (adminAppUserId == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
+            if (appUserRole != "Admin" || appUserRole == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found in this time.", new { IsSuccess = true }));
+
+            var teams = await _dbContext.Teams
+                                        .Include(t => t.Students)
+                                            .ThenInclude(s => s.AppUser)
+                                        .Include(t => t.Schedules)
+                                        .Include(t => t.Evaluations)
+                                        .Where(t => t.Specialty == specialty &&
+                                                    t.HasProject == true &&
+                                                    t.Schedules.Any(s => s.IsActive &&
+                                                                    s.AcademicAppointmentId == activeAppointment.Id &&
+                                                                    s.Status == "Finished"
+                                                                   )
+                                               )
+                                        .AsNoTracking()
+                                        .ToListAsync();
+
+            if (teams == null || !teams.Any())
+                return NotFound(new ApiResponse(404, $"No teams found for this specialty: '{specialty}'.", new { IsSuccess = false }));
+
+            var criterias = await _dbContext.Criterias
+                                            .Where(c => c.IsActive == true &&
+                                                        c.Specialty == specialty &&
+                                                        c.AcademicAppointmentId == activeAppointment.Id
+                                                  )
+                                            .AsNoTracking()
+                                            .ToListAsync();
+
+            if (criterias == null || !criterias.Any())
+                return NotFound(new ApiResponse(404, $"No criterias found for this specialty: '{specialty}'.", new { IsSuccess = false }));
+
+            // Check if all supervisors and admins have evaluated all students in the teams
+            var supervisorCriteria = criterias.Where(c => c.Evaluator == "Supervisor").ToList();
+            var adminCriteria = criterias.Where(c => c.Evaluator == "Admin").ToList();
+            var examinerCriteria = criterias.Where(c => c.Evaluator == "Examiner").ToList();
+
+            // Check if all supervisors have evaluated all students in the teams
+            foreach (var team in teams)
+            {
+                foreach (var student in team.Students)
+                {
+                    // Check Supervisor Evaluations
+                    foreach (var criteria in supervisorCriteria)
+                    {
+                        var supervisorEvaluation = await _dbContext.Evaluations
+                            .Where(e => e.CriteriaId == criteria.Id &&
+                                        e.TeamId == team.Id &&
+                                        (e.StudentId == student.Id || e.StudentId == null) &&
+                                        e.EvaluatorRole == "Supervisor")
+                            .ToListAsync();
+
+                        var totalSupervisors = await _dbContext.CommitteeDoctorSchedules
+                                                             .Where(cds => cds.Schedule.TeamId == team.Id &&
+                                                                           cds.DoctorRole == "Supervisor")
+                                                             .CountAsync();
+
+                        if (supervisorEvaluation.Count != totalSupervisors)
+                        {
+                            return BadRequest(new ApiResponse(400, $"Not all supervisors have evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                        }
+                    }
+                }
+            }
+
+            // Check if all admins have evaluated all students in the teams
+            foreach (var team in teams)
+            {
+                foreach (var student in team.Students)
+                {
+                    // Check Admin Evaluations
+                    foreach (var criteria in adminCriteria)
+                    {
+                        var adminEvaluation = await _dbContext.Evaluations
+                            .Where(e => e.CriteriaId == criteria.Id &&
+                                        e.TeamId == team.Id &&
+                                        (e.StudentId == student.Id || e.StudentId == null) &&
+                                        e.EvaluatorRole == "Admin")
+                            .ToListAsync();
+                        if (!adminEvaluation.Any())
+                        {
+                            return BadRequest(new ApiResponse(400, $"Admin has not evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                        }
+                    }
+                }
+            }
+
+            // Check if all examiners have evaluated all students in the teams
+            foreach (var team in teams)
+            {
+                foreach (var student in team.Students)
+                {
+                    foreach (var criteria in examinerCriteria)
+                    {
+                        var evaluations = await _dbContext.Evaluations
+                                                          .Where(e => e.CriteriaId == criteria.Id &&
+                                                                      e.TeamId == team.Id &&
+                                                                      (e.StudentId == student.Id || e.StudentId == null) &&
+                                                                      e.EvaluatorRole == "Examiner")
+                                                          .ToListAsync();
+
+                        var totalExaminers = await _dbContext.CommitteeDoctorSchedules
+                                                             .Where(cds => cds.Schedule.TeamId == team.Id &&
+                                                                           cds.DoctorRole == "Examiner")
+                                                             .CountAsync();
+
+                        if (evaluations.Count != totalExaminers)
+                        {
+                            return BadRequest(new ApiResponse(400, $"Not all examiners have evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                        }
+                    }
+                }
+            }
+
+            ExcelPackage.License.SetNonCommercialPersonal("Backend Team");
+            using (var package = new ExcelPackage(new FileInfo("MyWorkbook.xlsx")))
+            {
+                var worksheet = package.Workbook.Worksheets.Add("Grades");
+
+                int col = 1;
+                worksheet.Cells[1, col++].Value = "Student Name";
+                worksheet.Cells[1, col++].Value = "Email";
+                worksheet.Cells[1, col++].Value = "Team Name";
+
+                foreach (var c in adminCriteria)
+                    worksheet.Cells[1, col++].Value = $"Admin: {c.Name}";
+                foreach (var c in supervisorCriteria)
+                    worksheet.Cells[1, col++].Value = $"Supervisor: {c.Name}";
+                foreach (var c in examinerCriteria)
+                    worksheet.Cells[1, col++].Value = $"Examiner: {c.Name} (Avg)";
+
+                int row = 2;
+                foreach (var team in teams)
+                {
+                    foreach (var student in team.Students)
+                    {
+                        col = 1;
+                        worksheet.Cells[row, col++].Value = student.FullName;
+                        worksheet.Cells[row, col++].Value = student.AppUser.Email;
+                        worksheet.Cells[row, col++].Value = team.Name;
+
+                        var evaluations = await _dbContext.Evaluations
+                                                          .Include(e => e.Criteria)
+                                                          .Where(e => ((e.StudentId == student.Id && e.TeamId == team.Id) ||
+                                                                      (e.StudentId == null && e.TeamId == team.Id))
+                                                                )
+                                                          .AsNoTracking()
+                                                          .ToListAsync();
+
+                        foreach (var c in adminCriteria)
+                        {
+                            var grade = evaluations.FirstOrDefault(e => e.CriteriaId == c.Id &&
+                                                                   e.EvaluatorRole == "Admin")?.Grade;
+
+                            worksheet.Cells[row, col].Value = grade.HasValue ? grade.Value.ToString() : "N/A";
+                            if (grade.HasValue)
+                            {
+                                worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
+                            }
+                            col++;
+                        }
+
+                        foreach (var c in supervisorCriteria)
+                        {
+                            var grade = evaluations.FirstOrDefault(e => e.CriteriaId == c.Id &&
+                                                                   e.EvaluatorRole == "Supervisor")?.Grade;
+
+                            worksheet.Cells[row, col].Value = grade.HasValue ? grade.Value.ToString() : "N/A";
+                            if (grade.HasValue)
+                            {
+                                worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
+                            }
+                            col++;
+                        }
+
+                        foreach (var c in examinerCriteria)
+                        {
+                            var examinerGrades = evaluations.Where(e => e.CriteriaId == c.Id && e.EvaluatorRole == "Examiner")
+                                                            .Select(e => e.Grade)
+                                                            .ToList();
+
+                            var average = examinerGrades.Any() ? examinerGrades.Average() : (double?)null;
+                            worksheet.Cells[row, col].Value = average.HasValue ? average.Value.ToString() : "N/A";
+                            if (average.HasValue)
+                            {
+                                worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
+                            }
+                            col++;
+                        }
+
+                        row++;
+                    }
+                }
+
+                var stream = new MemoryStream();
+                package.SaveAs(stream);
+                stream.Position = 0;
+
+                var fileName = $"Grades_{specialty}.xlsx";
+                var fileContent = stream.ToArray();
+
+                var response = new
+                {
+                    FileName = fileName,
+                    FileContent = Convert.ToBase64String(fileContent),
+                    ContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                };
+
+                return Ok(new ApiResponse(200, "Grades exported successfully.", new { IsSuccess = true, excelSheet = response }));
+            }
         }
     }
 }

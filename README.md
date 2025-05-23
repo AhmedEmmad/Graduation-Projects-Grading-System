@@ -1,6 +1,6 @@
-# Graduation-Projects-Grading-System
+<h1> Graduation-Projects-Grading-System</h1>
 
-## System Design:
+# System Design:
 
 ### High-Level Architecture
 

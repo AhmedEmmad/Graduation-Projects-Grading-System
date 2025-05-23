@@ -6,16 +6,17 @@ The **Graduation Projects Grading System** is built to simplify and enhance the 
 
 ### High-Level Architecture
 
-The system is structured into four core layers, each with distinct responsibilities to facilitate robust functionality and ease of maintenance:
+The system is structured using the Onion Architecture, which promotes separation of concerns by organizing the codebase into four core layers. Each layer has distinct responsibilities, ensuring modularity and ease of maintenance.
 
 #### 1. Presentation Layer (GraduationProjectsGradingSystem.APIs)
-The entry point for client interactions, built with **ASP.NET Core 8.0** to ensure high performance and cross-platform compatibility.
+The entry point for client interactions, built with ASP.NET Core 8.0 for high performance and cross-platform compatibility.
 
+**Responsibilities:**
 - Exposes **RESTful API endpoints** for seamless client-server communication.
-- Manages **HTTP requests and responses** with robust error handling.
-- Utilizes **SignalR** for real-time notifications (e.g., grading updates).
-- Provides **Swagger/OpenAPI documentation** for easy API exploration and testing.
-- Implements **JWT-based authentication** to secure endpoints and user sessions.
+- Handles **HTTP requests and responses** with robust error handling.
+- Uses **SignalR** for real-time notifications (e.g., send instructions to doctors).
+- Provides **Swagger/OpenAPI documentation** at the /swagger endpoint for **API exploration and testing**.
+- Implements **JWT-based authentication** to secure endpoints and manage user sessions.
 
 #### 2. Application Layer (GraduationProjectsGradingSystem.Service)
 Encapsulates the system's business logic, orchestrating data flow and ensuring modular functionality.

@@ -4,7 +4,7 @@ The **Graduation Projects Grading System** is built to simplify and enhance the 
 
 ## System Design
 
-##### High-Level Architecture
+#### High-Level Architecture
 
 The system is structured into four core layers, each with distinct responsibilities to facilitate robust functionality and ease of maintenance:
 

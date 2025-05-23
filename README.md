@@ -8,7 +8,7 @@ The **Graduation Projects Grading System** is built to simplify and enhance the 
 
 The system is structured into four core layers, each with distinct responsibilities to facilitate robust functionality and ease of maintenance:
 
-#### 1. Presentation Layer (GraduationProjectsGradingSystem.APIs)
+##### 1. Presentation Layer (GraduationProjectsGradingSystem.APIs)
 The entry point for client interactions, built with **ASP.NET Core 8.0** to ensure high performance and cross-platform compatibility.
 
 - Exposes **RESTful API endpoints** for seamless client-server communication.
@@ -17,7 +17,7 @@ The entry point for client interactions, built with **ASP.NET Core 8.0** to ensu
 - Provides **Swagger/OpenAPI documentation** for easy API exploration and testing.
 - Implements **JWT-based authentication** to secure endpoints and user sessions.
 
-#### 2. Application Layer (GraduationProjectsGradingSystem.Service)
+##### 2. Application Layer (GraduationProjectsGradingSystem.Service)
 Encapsulates the system's business logic, orchestrating data flow and ensuring modular functionality.
 
 - Implements **service interfaces** for reusable and testable business logic.
@@ -25,7 +25,7 @@ Encapsulates the system's business logic, orchestrating data flow and ensuring m
 - Manages **cross-cutting concerns**, such as logging, caching, and error handling.
 - Coordinates interactions between the presentation layer and the data access layer.
 
-#### 3. Domain Layer (GraduationProjectsGradingSystem.Core)
+##### 3. Domain Layer (GraduationProjectsGradingSystem.Core)
 The core of the system, defining business entities and rules, independent of external frameworks for maximum portability.
 
 - Contains **entity models** representing key system data (e.g., students, grades, projects).
@@ -33,7 +33,7 @@ The core of the system, defining business entities and rules, independent of ext
 - Enforces **business rules and validation logic** to maintain data consistency.
 - Manages **identity and access control policies** for secure user management.
 
-#### 4. Data Access Layer (GraduationProjectsGradingSystem.Repository)
+##### 4. Data Access Layer (GraduationProjectsGradingSystem.Repository)
 Handles all database interactions and persistence logic, ensuring efficient data operations.
 
 - Utilizes **Entity Framework Core** for Object-Relational Mapping (ORM) and **LINQ** for expressive querying.

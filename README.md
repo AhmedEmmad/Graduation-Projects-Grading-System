@@ -78,7 +78,7 @@ Handles all database interactions and persistence logic, ensuring efficient data
 - Microsoft.AspNetCore.ldentity.EntityFrameworkCore (8.0.11)
 
 
-## Key Features
+### Key Features
 - **Scalable Architecture:** The layered design supports easy extension and maintenance.
 - **Real-Time Updates:** SignalR enables instant notifications.
 - **Secure Access:** JWT authentication ensures role-based access control (e.g., Admin, Doctor, Student).

@@ -8,6 +8,7 @@ The **Graduation Projects Grading System** is built to simplify and enhance the 
 
 The system is structured using the Onion Architecture, which promotes separation of concerns by organizing the codebase into four core layers. Each layer has distinct responsibilities, ensuring modularity and ease of maintenance.
 
+
 #### 1. Presentation Layer (GraduationProjectsGradingSystem.APIs)
 The entry point for client interactions, built with ASP.NET Core 8.0 for high performance and cross-platform compatibility.
 
@@ -17,43 +18,71 @@ The entry point for client interactions, built with ASP.NET Core 8.0 for high pe
 - Uses **SignalR** for real-time notifications (e.g., send instructions to doctors).
 - Provides **Swagger/OpenAPI documentation** at the /swagger endpoint for **API exploration and testing**.
 - Implements **JWT-based authentication** to secure endpoints and manage user sessions.
+- Custom **Error Handling Of All Program** Middleware.
+
+**Technologies:**
+- .NET Core (8.0)
+- Microsoft.AspNetCore.SignalR (12.0)
+- Swashbuckle.AspNetCore (for Swagger) (6.6.2)
+- Microsoft.AspNetCore.Authentication.JwtBearer (8.0.11)
+- Microsoft.AspNetCore.Mvc.NewtonsoftJson (8.0.11)
+- Microsoft.EntityFrameworkCore (9.0.0)
+- EPPlus (8.0.3)
+- Microsoft.EntityFrameworkCore.SqlServer (9.0.0)
+- Microsoft.EntityFrameworkCore.Tools (9.0.0)
+
 
 #### 2. Application Layer (GraduationProjectsGradingSystem.Service)
 Encapsulates the system's business logic, orchestrating data flow and ensuring modular functionality.
 
+**Responsibilities:**
 - Implements **service interfaces** for reusable and testable business logic.
-- Handles **data transformation and validation** to maintain data integrity.
-- Manages **cross-cutting concerns**, such as logging, caching, and error handling.
-- Coordinates interactions between the presentation layer and the data access layer.
+- Manages **data transformation and validation** to ensure data integrity.
+- Handles **cross-cutting concerns** like error handling.
+- Acts as an intermediary between the **presentation and data access layers**.
+
+**Technologies:**
+- .NET Core (8.0)
+- Microsoft.AspNetCore.Authentication.JwtBearer (8.0.11)
+
 
 #### 3. Domain Layer (GraduationProjectsGradingSystem.Core)
 The core of the system, defining business entities and rules, independent of external frameworks for maximum portability.
 
-- Contains **entity models** representing key system data (e.g., students, grades, projects).
-- Defines **domain interfaces** to ensure consistent abstractions across the system.
+**Responsibilities:**
+- Defines **entity models**.
+- Specifies **domain interfaces** for consistent abstractions.
 - Enforces **business rules and validation logic** to maintain data consistency.
 - Manages **identity and access control policies** for secure user management.
+
+**Technologies:**
+- .NET Core (8.0)
+- Microsoft.AspNetCore.Identity.EntityFrameworkCore (8.0.11)
+
 
 #### 4. Data Access Layer (GraduationProjectsGradingSystem.Repository)
 Handles all database interactions and persistence logic, ensuring efficient data operations.
 
-- Utilizes **Entity Framework Core** for Object-Relational Mapping (ORM) and **LINQ** for expressive querying.
-- Implements the **Repository pattern** to abstract data access logic.
-- Manages **database context and migrations** for schema consistency and evolution.
-- Executes optimized **database operations** to ensure performance.
+**Responsibilities:**
+- Uses **Entity Framework Core** for Object-Relational Mapping (ORM) and **LINQ** for expressive querying.
+- Implements the **Repository pattern** to abstract data access logic.(Implements all repositories interfaces)
+- Manages **database context and migrations** for schema consistency.
+- Optimizes **database operations** for performance.
+- **Seeding data** as hardcoded. 
+
+**Technologies:**
+- Entity Framework Core (9.0.0)
+- Microsoft.EntityFrameworkCore.SqlServer (9.0.0)
+- Microsoft.EntityFrameworkCore.Tools (9.0.0)
+- Microsoft.Extensions.Configuration (9.0.4)
+- Microsoft.AspNetCore.ldentity.EntityFrameworkCore (8.0.11)
+
 
 ## Key Features
-- **Scalable Architecture**: The layered design allows for easy extension and maintenance.
-- **Real-Time Updates**: SignalR enables instant notifications for grading and administrative tasks.
-- **Secure Access**: JWT authentication ensures secure and role-based access control.
-- **Developer-Friendly**: Swagger integration simplifies API testing and integration.
-- **Efficient Data Management**: Entity Framework Core and the Repository pattern streamline database operations.
+- **Scalable Architecture:** The layered design supports easy extension and maintenance.
+- **Real-Time Updates:** SignalR enables instant notifications.
+- **Secure Access:** JWT authentication ensures role-based access control (e.g., Admin, Doctor, Student).
+- **Developer-Friendly:** Swagger integration simplifies API testing and integration.
+- **Efficient Data Management:** Entity Framework Core and the Repository pattern streamline database operations.
 
-## Technologies Used
-- **ASP.NET Core 8.0**: For building a robust and scalable API.
-- **Entity Framework Core**: For ORM and database interactions.
-- **SignalR**: For real-time communication.
-- **JWT**: For secure authentication.
-- **Swagger/OpenAPI**: For API documentation and testing.
-
-This architecture ensures the **Graduation Projects Grading System** is a reliable, secure, and efficient solution for managing academic grading processes. Contributions and feedback are welcome to enhance its functionality!
+This architecture ensures the **Graduation Projects Grading System** is a reliable, secure, and efficient solution for managing academic grading processes.

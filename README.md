@@ -1,12 +1,12 @@
 <h1> Graduation-Projects-Grading-System</h1>
 
-# System Design:
+<h2>System Design</h2> 
 
-### High-Level Architecture
+<h3>High-Level Architecture</h3>
 
 <b>Graduation Projects Grading System</b> is a modern web application built using a layered architecture pattern(Onion Architecture), following clean architecture principles with clear separation of concerns. The system is designed to handle academic grading processes, student management, and administrative tasks for educational institutions.
 
-##### Architecture Layers
+<h4>Architecture Layers</h4>
 
 The system is structured into four main layers:
     - Presentation Layer (GraduationProjectsGradingSystem.APIs)

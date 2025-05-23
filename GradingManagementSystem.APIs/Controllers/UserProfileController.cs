@@ -118,10 +118,14 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(new ApiResponse(400, "Profile picture is invalid.", new { IsSuccess = false }));
 
             var userId = User.FindFirst("UserId")?.Value;
+            var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
+            if (string.IsNullOrEmpty(userRole))
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var response = await _userProfileService.ChangeProfilePictureAsync(model.ProfilePicture, userId);
+            var response = await _userProfileService.ChangeProfilePictureAsync(model.ProfilePicture, userId, userRole);
 
             if (response.StatusCode == 404)
                 return NotFound(response);

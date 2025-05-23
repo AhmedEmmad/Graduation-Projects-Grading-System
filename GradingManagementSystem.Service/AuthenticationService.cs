@@ -82,7 +82,7 @@ namespace GradingManagementSystem.Service
             string profilePicturePath = "";
             if (model.ProfilePicture != null)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students/ProfilePictures");
+                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students");
                 Directory.CreateDirectory(uploadsFolder);
 
                 var uniqueFileName = $"{Guid.NewGuid()}_{model.ProfilePicture.FileName}";

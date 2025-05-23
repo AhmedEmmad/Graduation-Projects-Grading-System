@@ -130,14 +130,21 @@ namespace GradingManagementSystem.Service
             return new ApiResponse(200, "Password changed successfully.", new { IsSuccess = true });
         }
 
-        public async Task<ApiResponse> ChangeProfilePictureAsync(IFormFile newProfilePicture, string userId)
+        public async Task<ApiResponse> ChangeProfilePictureAsync(IFormFile newProfilePicture, string userId, string userRole)
         {
             var existingUser = await _userProfileRepository.GetAppUserAsync(userId);
             if (existingUser == null)
                 return new ApiResponse(404, "User not found.", new { IsSuccess = false });
 
             var profilePicturePath = string.Empty;
-            var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students");
+            var uploadsFolder = string.Empty;
+            if (userRole == "Admin")
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Admins");
+            else if (userRole == "Doctor")
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Doctors");
+            else
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students");
+
             Directory.CreateDirectory(uploadsFolder);
 
             var uniqueFileName = $"{Guid.NewGuid()}_{newProfilePicture.FileName}";
@@ -148,7 +155,12 @@ namespace GradingManagementSystem.Service
                 await newProfilePicture.CopyToAsync(stream);
             }
 
-            profilePicturePath = $"{_configuration["ApiBaseUrl"]}Students/ProfilePictures/{uniqueFileName}";
+            if (userRole == "Admin")
+                profilePicturePath = $"{_configuration["ApiBaseUrl"]}Admins/ProfilePictures/{uniqueFileName}";
+            else if (userRole == "Doctor")
+                profilePicturePath = $"{_configuration["ApiBaseUrl"]}Doctors/ProfilePictures/{uniqueFileName}";
+            else
+                profilePicturePath = $"{_configuration["ApiBaseUrl"]}Students/ProfilePictures/{uniqueFileName}";
 
             existingUser.ProfilePicture = profilePicturePath;
             _userProfileRepository.Update(existingUser);

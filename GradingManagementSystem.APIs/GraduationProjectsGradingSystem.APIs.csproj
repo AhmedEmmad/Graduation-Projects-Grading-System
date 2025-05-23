@@ -4,6 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>57e8d0ca-d75d-454d-8ca4-5abc007f4782</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,9 +22,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GradingManagementSystem.Core\GradingManagementSystem.Core.csproj" />
-    <ProjectReference Include="..\GradingManagementSystem.Repository\GradingManagementSystem.Repository.csproj" />
-    <ProjectReference Include="..\GradingManagementSystem.Service\GradingManagementSystem.Service.csproj" />
+    <ProjectReference Include="..\GradingManagementSystem.Core\GraduationProjectsGradingSystem.Core.csproj" />
+    <ProjectReference Include="..\GradingManagementSystem.Repository\GraduationProjectsGradingSystem.Repository.csproj" />
+    <ProjectReference Include="..\GradingManagementSystem.Service\GraduationProjectsGradingSystem.Service.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="wwwroot\Admins\ProfilePictures\" />
+    <Folder Include="wwwroot\Doctors\ProfilePictures\" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,6 @@
+@GradingManagementSystem.APIs_HostAddress = http://localhost:5166
+
+GET {{GradingManagementSystem.APIs_HostAddress}}/swagger/
+Accept: application/json
+
+###

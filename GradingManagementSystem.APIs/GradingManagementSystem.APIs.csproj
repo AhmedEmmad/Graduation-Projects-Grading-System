@@ -26,6 +26,10 @@
     <ProjectReference Include="..\GradingManagementSystem.Service\GradingManagementSystem.Service.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="wwwroot\Students\ProfilePictures\" />
+  </ItemGroup>
+
 
 
 </Project>

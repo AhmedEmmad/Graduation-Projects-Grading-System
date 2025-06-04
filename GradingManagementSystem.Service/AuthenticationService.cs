@@ -134,12 +134,18 @@ namespace GradingManagementSystem.Service
             var existingDoctor = await _userManager.FindByEmailAsync(model.Email);
             if (existingDoctor != null)
                 return new ApiResponse(400, $"This email \'{model.Email}\' is already taken or registered, Please register with another email", new { IsSuccess = false });
+            
+            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                .FindAsync(a => a.Status == "Active");
+            if (currentActiveAcademicYearAppointment == null)
+                return new ApiResponse(400, "No active academic year appointment found. Please wait until registration will open.", new { IsSuccess = false });
 
             var newDoctorAppUser = new AppUser
             {
                 FullName = model.FullName,
                 Email = model.Email,
                 UserName = model.Email.Split('@')[0],
+                //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
             };
 
             var createDoctorResult = await _userManager.CreateAsync(newDoctorAppUser, model.Password);
@@ -244,6 +250,11 @@ namespace GradingManagementSystem.Service
             _unitOfWork.Repository<UserOtp>().Delete(existingOtpCode);
             await _unitOfWork.CompleteAsync();
 
+            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                .FindAsync(a => a.Status == "Active");
+            if (currentActiveAcademicYearAppointment == null)
+                return new ApiResponse(400, "No active academic year appointment found. Please wait until registration will open.", new { IsSuccess = false });
+
             var newStudentAppUser = new AppUser
             {
                 FullName = existingTemporaryUser.FullName,
@@ -251,7 +262,8 @@ namespace GradingManagementSystem.Service
                 UserName = existingTemporaryUser.Email.Split('@')[0],
                 ProfilePicture = existingTemporaryUser.ProfilePicture,
                 EmailConfirmed = true,
-                Specialty = existingTemporaryUser?.Specialty?.ToUpper()
+                Specialty = existingTemporaryUser?.Specialty?.ToUpper(),
+                //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
             };
 
             var StudentCreatedResult = await _userManager.CreateAsync(newStudentAppUser, existingTemporaryUser.PasswordHash);

@@ -3,7 +3,7 @@ using GradingManagementSystem.Core.DTOs;
 
 namespace GradingManagementSystem.Core.Services.Contact
 {
-    public interface IAcademicAppointmentsService
+    public interface IAcademicAppointmentService
     {
         Task<ApiResponse> CreateNewAcademicAppointmentAsync(CreateAcademicAppointmentDto model);
         Task<ApiResponse> GetAllAcademicYearAppointmentsAsync();

@@ -150,7 +150,7 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Doctor, Student")]
         public async Task<IActionResult> MarkAsRead(int notificationId)
         {
-            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(notificationId);
+            var notification = await _unitOfWork.Repository<Notification>().FindAsync(n => n.Id == notificationId);
             if (notification == null)
                 return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 

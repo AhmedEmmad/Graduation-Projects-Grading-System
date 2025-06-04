@@ -45,17 +45,20 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctorIdeaExists != null)
                 return BadRequest(CreateErrorResponse400BadRequest("Project idea with this name already exists, Please enter other project name."));
 
+            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+
             var newDoctorProjectIdea = new DoctorProjectIdea
             {
                 Name = model.Name,
                 Description = model.Description,
-                DoctorId = doctor.Id
+                DoctorId = doctor.Id,
+                //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
             };
             
             await _unitOfWork.Repository<DoctorProjectIdea>().AddAsync(newDoctorProjectIdea);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Project submitted successfully with id: '{newDoctorProjectIdea.Id}', Please wait until admin review this idea.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Project submitted successfully, Please wait until admin review this idea.", new { IsSuccess = true }));
         }
 
         // Finished / Reviewed / Tested
@@ -207,6 +210,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 PostedBy = "Team"
             };
             await _unitOfWork.Repository<FinalProjectIdea>().AddAsync(finalProjectIdea);
+            await _unitOfWork.CompleteAsync();
 
             var pendingTeamProjectIdeas = _dbContext.TeamProjectIdeas
                                                     .Where(p => p.LeaderId == team.LeaderId && p.Status == "Pending" && p.TeamId == team.Id && p.Id != teamProjectIdea.Id)
@@ -224,7 +228,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Status Of Project id: '{teamProjectIdea.Id}' Updated To '{model.NewStatus.ToLower()}' Successfully!", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Status Of this project Updated To '{model.NewStatus.ToLower()}' Successfully!", new { IsSuccess = true }));
         }
 
         // Finished / Tested

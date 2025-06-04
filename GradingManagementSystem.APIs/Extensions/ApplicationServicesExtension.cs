@@ -60,7 +60,7 @@ namespace GradingManagementSystem.APIs.Extensions
             Services.AddScoped<ITokenService, TokenService>();
             Services.AddScoped<IUserProfileService, UserProfileService>();
             Services.AddScoped<IAcademicAppointmentRepository, AcademicAppointmentRepository>();
-            Services.AddScoped<IAcademicAppointmentsService, AcademicAppointmentsService>();
+            Services.AddScoped<IAcademicAppointmentService, AcademicAppointmentService>();
             Services.AddSignalR();
 
             Services.AddSwaggerGen(options =>

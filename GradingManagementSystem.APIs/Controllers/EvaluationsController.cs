@@ -537,6 +537,9 @@ namespace GradingManagementSystem.APIs.Controllers
                     if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
                         return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
 
+                    var currentActiveAcademicYearAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+                    if (currentActiveAcademicYearAppointment == null)
+                        return BadRequest(new ApiResponse(400, "Can not evaluate now.", new { IsSuccess = false }));
                     var newEvaluation = new Evaluation
                     {
                         ScheduleId = model.ScheduleId,
@@ -547,6 +550,7 @@ namespace GradingManagementSystem.APIs.Controllers
                         StudentId = model.StudentId,
                         TeamId = model.TeamId,
                         Grade = gradeItem.Grade,
+                        //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
                     };
 
                     await _dbContext.Evaluations.AddAsync(newEvaluation);

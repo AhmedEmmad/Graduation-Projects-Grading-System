@@ -4,17 +4,16 @@ using GradingManagementSystem.Core.DTOs;
 using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Repositories.Contact;
 using GradingManagementSystem.Core.Services.Contact;
-using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
 namespace GradingManagementSystem.Service
 {
-    public class AcademicAppointmentsService : IAcademicAppointmentsService
+    public class AcademicAppointmentService : IAcademicAppointmentService
     {
         private readonly IAcademicAppointmentRepository _academicAppointmentRepository;
         private readonly IUnitOfWork _unitOfWork;
 
-        public AcademicAppointmentsService(IAcademicAppointmentRepository academicAppointmentRepository,
+        public AcademicAppointmentService(IAcademicAppointmentRepository academicAppointmentRepository,
                                            IUnitOfWork unitOfWork)
         {
             _academicAppointmentRepository = academicAppointmentRepository;

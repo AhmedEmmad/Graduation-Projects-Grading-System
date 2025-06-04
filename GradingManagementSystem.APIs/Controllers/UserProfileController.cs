@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using GradingManagementSystem.Core.Services.Contact;
-using GradingManagementSystem.Core;
-using GradingManagementSystem.Repository.Data.DbContexts;
 
 namespace GradingManagementSystem.APIs.Controllers
 {    
@@ -14,14 +12,10 @@ namespace GradingManagementSystem.APIs.Controllers
     public class UserProfileController : ControllerBase
     {
         private readonly IUserProfileService _userProfileService;
-        private readonly IUnitOfWork _unitOfWork;
-        private readonly GradingManagementSystemDbContext _dbContext;
 
-        public UserProfileController(IUserProfileService userProfileService, IUnitOfWork unitOfWork, GradingManagementSystemDbContext dbContext)
+        public UserProfileController(IUserProfileService userProfileService)
         {
             _userProfileService = userProfileService;
-            _unitOfWork = unitOfWork;
-            _dbContext = dbContext;
         }
 
         [HttpGet("GetProfile")]

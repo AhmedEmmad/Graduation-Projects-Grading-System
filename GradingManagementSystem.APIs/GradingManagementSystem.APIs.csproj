@@ -27,6 +27,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Folder Include="wwwroot\Admins\ProfilePictures\" />
+    <Folder Include="wwwroot\Doctors\ProfilePictures\" />
     <Folder Include="wwwroot\Students\ProfilePictures\" />
   </ItemGroup>
 

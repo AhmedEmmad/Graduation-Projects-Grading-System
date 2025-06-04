@@ -7,7 +7,6 @@ using GradingManagementSystem.Core;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using System;
 using Microsoft.EntityFrameworkCore;
 using GradingManagementSystem.Repository.Data.DbContexts;
 
@@ -139,11 +138,11 @@ namespace GradingManagementSystem.Service
             var profilePicturePath = string.Empty;
             var uploadsFolder = string.Empty;
             if (userRole == "Admin")
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Admins");
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Admins/ProfilePictures");
             else if (userRole == "Doctor")
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Doctors");
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Doctors/ProfilePictures");
             else
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students");
+                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students/ProfilePictures");
 
             Directory.CreateDirectory(uploadsFolder);
 

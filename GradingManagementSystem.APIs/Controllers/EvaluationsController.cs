@@ -58,7 +58,10 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.SupervisorId == evaluatorId && t.HasProject && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id) && t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
+                .Where(t => t.SupervisorId == evaluatorId &&
+                       t.HasProject &&
+                       t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id) &&
+                       t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -67,7 +70,9 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var teamSpecialties = supervisedTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Supervisor" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
+                .Where(c => c.IsActive && c.Evaluator == "Supervisor" &&
+                       teamSpecialties.Contains(c.Specialty) &&
+                       c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -78,6 +83,34 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 Specialty = specialty,
                 Criterias = activeCriterias
+                    .Where(c => c.Specialty == specialty && c.IsActive)
+                    .Select(c => new CriteriaDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        MaxGrade = c.MaxGrade,
+                        Evaluator = c.Evaluator,
+                        GivenTo = c.GivenTo,
+                        Specialty = c.Specialty,
+                        Year = c.Year,
+                        Term = c.Term,
+                        CreatedAt = c.CreatedAt,
+                    }).ToList(),
+                Teams = supervisedTeams
+                    .Where(t => t.Specialty == specialty)
+                    .Select(t => new TeamWithCriteriaDto
+                    {
+                        TeamId = t.Id,
+                        TeamName = t.Name,
+                        ProjectId = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectId : 0,
+                        ProjectName = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectName : "N/A",
+                        ProjectDescription = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectDescription : "N/A",
+                        ScheduleId = t.Schedules.FirstOrDefault()?.Id ?? null,
+                        ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate ?? null,
+                        ScheduleStatus = t.Schedules.FirstOrDefault()?.Status ?? null,
+                        Specialty = t.Specialty,
+                        Criterias = activeCriterias
                             .Where(c => c.Specialty == specialty && c.IsActive)
                             .Select(c => new CriteriaDto
                             {
@@ -92,41 +125,33 @@ namespace GradingManagementSystem.APIs.Controllers
                                 Term = c.Term,
                                 CreatedAt = c.CreatedAt,
                             }).ToList(),
-                Teams = supervisedTeams
-                        .Where(t => t.Specialty == specialty)
-                        .Select(t => new TeamWithCriteriaDto
-                        {
-                            TeamId = t.Id,
-                            TeamName = t.Name,
-                            ProjectId = t.FinalProjectIdea.ProjectId,
-                            ProjectName = t.FinalProjectIdea.ProjectName,
-                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
-                            TeamMembers = t.Students.Select(s => new TeamMemberDto
-                            {
-                                Id = s.Id,
-                                FullName = s.FullName,
-                                Email = s.AppUser.Email,
-                                Specialty = s.Specialty,
-                                InTeam = s.InTeam,
-                                ProfilePicture = s.AppUser.ProfilePicture,
-                            }).ToList()
-                        }).ToList()
+                        TeamMembers = t.Students != null
+                            ? t.Students
+                                .Where(s => s.AppUser != null)
+                                .Select(s => new TeamMemberDto
+                                {
+                                    Id = s.Id,
+                                    FullName = s.FullName,
+                                    Email = s.AppUser.Email ?? "N/A",
+                                    Specialty = s.Specialty,
+                                    InTeam = s.InTeam,
+                                    ProfilePicture = s.AppUser.ProfilePicture ?? "N/A"
+                                }).ToList()
+                            : new List<TeamMemberDto>()
+                    }).ToList()
             }).ToList();
 
-            // Update the status of schedules to "Finished"  
-            var schedulesToUpdate = await _dbContext.Schedules
-                .Where(s => supervisorScheduleIds.Contains(s.Id) && s.Status != "Finished")
-                .ToListAsync();
+            //// Update the status of schedules to "Finished"  
+            //var schedulesToUpdate = await _dbContext.Schedules
+            //    .Where(s => supervisorScheduleIds.Contains(s.Id) && s.Status != "Finished")
+            //    .ToListAsync();
 
-            foreach (var schedule in schedulesToUpdate)
-            {
-                schedule.Status = "Finished";
-            }
+            //foreach (var schedule in schedulesToUpdate)
+            //{
+            //    schedule.Status = "Finished";
+            //}
 
-            await _dbContext.SaveChangesAsync();
+            //await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Supervision teams retrieved successfully.", new { IsSuccess = true, supervisorTeamsWithCriteriaBySpecialtyGroup }));
         }
@@ -162,6 +187,11 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var examinationTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
+                    .ThenInclude(fp => fp.TeamProjectIdea)
+                        .ThenInclude(tp => tp.Team)
+                .Include(t => t.FinalProjectIdea)
+                    .ThenInclude(fp => fp.TeamRequestDoctorProjectIdea)
+                        .ThenInclude(tr => tr.DoctorProjectIdea)
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
@@ -185,6 +215,34 @@ namespace GradingManagementSystem.APIs.Controllers
             {
                 Specialty = specialty,
                 Criterias = activeCriterias
+                    .Where(c => c.Specialty == specialty && c.IsActive)
+                    .Select(c => new CriteriaDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        MaxGrade = c.MaxGrade,
+                        Evaluator = c.Evaluator,
+                        GivenTo = c.GivenTo,
+                        Specialty = c.Specialty,
+                        Year = c.Year,
+                        Term = c.Term,
+                        CreatedAt = c.CreatedAt,
+                    }).ToList(),
+                Teams = examinationTeams
+                    .Where(t => t.Specialty == specialty)
+                    .Select(t => new TeamWithCriteriaDto
+                    {
+                        TeamId = t.Id,
+                        TeamName = t.Name,
+                        ProjectId = t.FinalProjectIdea != null  ? t.FinalProjectIdea.ProjectId : 0,
+                        ProjectName = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectName : "N/A",
+                        ProjectDescription = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectDescription : "N/A",
+                        ScheduleId = t.Schedules.FirstOrDefault()?.Id ?? null,
+                        ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate ?? null,
+                        ScheduleStatus = t.Schedules.FirstOrDefault()?.Status ?? null,
+                        Specialty = t.Specialty,
+                        Criterias = activeCriterias
                             .Where(c => c.Specialty == specialty && c.IsActive)
                             .Select(c => new CriteriaDto
                             {
@@ -199,41 +257,33 @@ namespace GradingManagementSystem.APIs.Controllers
                                 Term = c.Term,
                                 CreatedAt = c.CreatedAt,
                             }).ToList(),
-                Teams = examinationTeams
-                        .Where(t => t.Specialty == specialty)
-                        .Select(t => new TeamWithCriteriaDto
-                        {
-                            TeamId = t.Id,
-                            TeamName = t.Name,
-                            ProjectId = t.FinalProjectIdea.ProjectId,
-                            ProjectName = t.FinalProjectIdea.ProjectName,
-                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
-                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
-                            TeamMembers = t.Students.Select(s => new TeamMemberDto
-                            {
-                                Id = s.Id,
-                                FullName = s.FullName,
-                                Email = s.AppUser.Email,
-                                Specialty = s.Specialty,
-                                InTeam = s.InTeam,
-                                ProfilePicture = s.AppUser.ProfilePicture,
-                            }).ToList()
-                        }).ToList()
+                        TeamMembers = t.Students != null
+                            ? t.Students
+                                .Where(s => s.AppUser != null)
+                                .Select(s => new TeamMemberDto
+                                {
+                                    Id = s.Id,
+                                    FullName = s.FullName,
+                                    Email = s.AppUser.Email ?? "N/A",
+                                    Specialty = s.Specialty,
+                                    InTeam = s.InTeam,
+                                    ProfilePicture = s.AppUser.ProfilePicture ?? "N/A"
+                                }).ToList()
+                            : new List<TeamMemberDto>()
+                    }).ToList()
             }).ToList();
 
-            // Update the status of schedules to "Finished"  
-            var schedulesToUpdate = await _dbContext.Schedules
-                .Where(s => examinerScheduleIds.Contains(s.Id) && s.Status != "Finished")
-                .ToListAsync();
+            //// Update the status of schedules to "Finished"  
+            //var schedulesToUpdate = await _dbContext.Schedules
+            //    .Where(s => examinerScheduleIds.Contains(s.Id) && s.Status != "Finished")
+            //    .ToListAsync();
 
-            foreach (var schedule in schedulesToUpdate)
-            {
-                schedule.Status = "Finished";
-            }
+            //foreach (var schedule in schedulesToUpdate)
+            //{
+            //    schedule.Status = "Finished";
+            //}
 
-            await _dbContext.SaveChangesAsync();
+            //await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, examinerTeamsWithCriteriaBySpecialtyGroup }));
         }
@@ -268,6 +318,8 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var adminTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
+                    .ThenInclude(fp => fp.TeamProjectIdea)
+                        .ThenInclude(tp => tp.Team)
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
@@ -313,36 +365,40 @@ namespace GradingManagementSystem.APIs.Controllers
                         {
                             TeamId = t.Id,
                             TeamName = t.Name,
-                            ProjectId = t.FinalProjectIdea.ProjectId,
-                            ProjectName = t.FinalProjectIdea.ProjectName,
-                            ProjectDescription = t.FinalProjectIdea.ProjectDescription,
+                            ProjectId = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectId : 0,
+                            ProjectName = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectName : "N/A",
+                            ProjectDescription = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectDescription : "N/A",
                             Specialty = t.Specialty,
-                            ScheduleId = t.Schedules.FirstOrDefault()?.Id,
-                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate,
-                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status,
-                            TeamMembers = t.Students.Select(s => new TeamMemberDto
-                            {
-                                Id = s.Id,
-                                FullName = s.FullName,
-                                Email = s.AppUser.Email,
-                                Specialty = s.Specialty,
-                                InTeam = s.InTeam,
-                                ProfilePicture = s.AppUser.ProfilePicture,
-                            }).ToList()
+                            ScheduleId = t.Schedules.FirstOrDefault()?.Id ?? null,
+                            ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate ?? null,
+                            ScheduleStatus = t.Schedules.FirstOrDefault()?.Status ?? null,
+                            TeamMembers = t.Students != null?
+                                                t.Students
+                                                .Where(s => s.AppUser != null) // Filter out students with null AppUser
+                                                .Select(s => new TeamMemberDto
+                                                {
+                                                    Id = s.Id,
+                                                    FullName = s.FullName,
+                                                    Email = s.AppUser.Email ?? "N/A",
+                                                    Specialty = s.Specialty,
+                                                    InTeam = s.InTeam,
+                                                    ProfilePicture = s.AppUser.ProfilePicture ?? "N/A"
+                                                }).ToList()
+                                            : new List<TeamMemberDto>()
                         }).ToList()
             }).ToList();
 
-            // Update the status of schedules to "Finished"  
-            var schedulesToUpdate = await _dbContext.Schedules
-                .Where(s => s.Status != "Finished")
-                .ToListAsync();
+            //// Update the status of schedules to "Finished"  
+            //var schedulesToUpdate = await _dbContext.Schedules
+            //    .Where(s => s.Status != "Finished")
+            //    .ToListAsync();
 
-            foreach (var schedule in schedulesToUpdate)
-            {
-                schedule.Status = "Finished";
-            }
+            //foreach (var schedule in schedulesToUpdate)
+            //{
+            //    schedule.Status = "Finished";
+            //}
 
-            await _dbContext.SaveChangesAsync();
+            //await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }

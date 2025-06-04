@@ -362,7 +362,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (team == null)
                 return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
 
-            if (team.HasProject)
+            if (team.HasProject && model.NewStatus == "Accepted")
                 return BadRequest(new ApiResponse(400, "This team already has a project.", new { IsSuccess = false }));
 
             var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.Id == model.DoctorId && d.Id == projectRequest.DoctorId);

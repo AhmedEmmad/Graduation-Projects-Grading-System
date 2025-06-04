@@ -33,6 +33,9 @@ namespace GradingManagementSystem.APIs.Controllers
             if (model == null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid input task data."));
 
+            if (model.Deadline < DateTime.Now)
+                return BadRequest(CreateErrorResponse400BadRequest("Task deadline must be in the future."));
+
             var supervisor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.Id == model.SupervisorId);
             if (supervisor == null)
                 return NotFound(CreateErrorResponse404NotFound("Supervisor not found."));

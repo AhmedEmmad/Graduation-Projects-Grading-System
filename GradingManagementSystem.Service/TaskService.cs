@@ -48,7 +48,7 @@ namespace GradingManagementSystem.Service
             }
 
             await _unitOfWork.CompleteAsync();
-            return new ApiResponse(200, $"Task created successfully with id: '{task.Id}'.", new { IsSuccess = true });
+            return new ApiResponse(200, "Task created successfully.", new { IsSuccess = true });
         }
 
         public async Task<ApiResponse> GetAllTeamTasksByTeamIdAsync(int teamId)
@@ -56,7 +56,7 @@ namespace GradingManagementSystem.Service
             var teamTasks = await _taskRepository.GetTeamTasksByTeamIdAsync(teamId);
 
             if (teamTasks == null || !teamTasks.Any())
-                return new ApiResponse(404, $"Tasks not found for this team.", new { IsSuccess = false });
+                return new ApiResponse(404, "Tasks not found for this team.", new { IsSuccess = false });
 
             var taskMembers = await _taskRepository.GetTaskMembersByTeamAsync(teamId);
 
@@ -87,7 +87,7 @@ namespace GradingManagementSystem.Service
                 }).ToHashSet()
             }).ToList();
 
-            return new ApiResponse(200, $"Tasks of this team id: '{teamId}' retrieved successfully.", new { IsSuccess = true, teamTasksWithTaskMembers });
+            return new ApiResponse(200, "Tasks of this team retrieved successfully.", new { IsSuccess = true, teamTasksWithTaskMembers });
         }
     }
 }

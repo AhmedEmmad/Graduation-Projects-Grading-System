@@ -8,6 +8,7 @@ namespace GradingManagementSystem.Repository.Data.ConfigurationClasses
     {
         public void Configure(EntityTypeBuilder<Schedule> builder)
         {
+            // One-To-Many (Schedules <-> Teams) 
             builder.HasOne(s => s.Team)
                 .WithMany(t => t.Schedules)
                 .HasForeignKey(s => s.TeamId)

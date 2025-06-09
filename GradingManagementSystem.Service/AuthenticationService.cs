@@ -277,6 +277,7 @@ namespace GradingManagementSystem.Service
                 Email = newStudentAppUser.Email,
                 Specialty = newStudentAppUser.Specialty ?? string.Empty,
                 AppUserId = newStudentAppUser.Id,
+                AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
 
             };
             await _unitOfWork.Repository<Student>().AddAsync(newStudent);

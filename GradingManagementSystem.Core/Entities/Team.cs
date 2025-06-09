@@ -8,6 +8,7 @@
 
         public int? LeaderId { get; set; } // Foreign Key Of Id In Student Table
         public int? SupervisorId { get; set; } = null; // Foreign Key Of Id In Doctor Table
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties
@@ -22,6 +23,7 @@
         public FinalProjectIdea FinalProjectIdea { get; set; }
         public ICollection<Criteria> Criterias { get; set; } = new HashSet<Criteria>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
 }

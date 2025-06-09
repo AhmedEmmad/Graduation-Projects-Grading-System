@@ -12,10 +12,12 @@ namespace GradingManagementSystem.Core.Entities
         public DateTime SentAt { get; set; } = DateTime.Now;
         
         public int? AdminId { get; set; } // Foreign Key Of Id In Admin Table
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties
         public Admin Admin { get; set; }
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
     

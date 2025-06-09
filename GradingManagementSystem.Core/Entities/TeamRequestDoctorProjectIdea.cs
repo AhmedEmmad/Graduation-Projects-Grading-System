@@ -9,6 +9,7 @@
         public int LeaderId { get; set; } // Foreign Key Of Id In Student Table
         public int DoctorId { get; set; } // Foreign Key Of Id In Doctor Table
         public int DoctorProjectIdeaId { get; set; } // Foreign Key Of Id In DoctorProjectIdea Table
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties
@@ -16,6 +17,7 @@
         public Student Leader { get; set; }
         public Doctor Doctor { get; set; }
         public DoctorProjectIdea DoctorProjectIdea { get; set; }
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
 }

@@ -9,7 +9,8 @@ namespace GradingManagementSystem.Repository.Data.ConfigurationClasses
         public void Configure(EntityTypeBuilder<Notification> builder)
         {
             //builder.HasIndex(N => N.Title).IsUnique();
-           
+
+            // One-To-Many (Admins <-> Notifications)
             builder.HasOne(N => N.Admin)
                    .WithMany(A => A.Notifications)
                    .HasForeignKey(N => N.AdminId)

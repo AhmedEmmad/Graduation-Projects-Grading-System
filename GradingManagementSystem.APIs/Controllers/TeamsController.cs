@@ -27,17 +27,25 @@ namespace GradingManagementSystem.APIs.Controllers
             _teamRepository = teamRepository;
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllTeamsWithProjects")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllTeams()
         {
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                             .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
             var teams = await _dbContext.Teams.Include(t => t.Leader)
                                               .Include(t => t.Supervisor)
                                               .Include(t => t.Schedules)
-                                              .Where(t => t.HasProject == true && !t.Schedules.Any(s => s.TeamId == t.Id))
+                                              .Where(t => t.HasProject == true &&
+                                                    !t.Schedules.Any(s => s.TeamId == t.Id) &&
+                                                     t.AcademicAppointmentId == activeAcademicAppointment.Id)
                                               .OrderBy(t => t.Name)
                                               .ToListAsync();
+
             if (teams == null || !teams.Any())
                 return NotFound(CreateErrorResponse404NotFound("No teams found."));
 
@@ -54,7 +62,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams with projects have been successfully retrieved.", new { IsSuccess = true, Teams = result }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("TeamWithMembers/{teamId}")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetTeamWithMembersById(int? teamId)
@@ -64,11 +72,22 @@ namespace GradingManagementSystem.APIs.Controllers
             if (teamId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
 
-            var team = await _dbContext.Teams.Include(t => t.Students).ThenInclude(s => s.AppUser).FirstOrDefaultAsync(T => T.Id == teamId);
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                             .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
+            var team = await _dbContext.Teams.Include(t => t.Students)
+                                             .ThenInclude(s => s.AppUser)
+                                             .FirstOrDefaultAsync(T => T.Id == teamId && T.AcademicAppointmentId == activeAcademicAppointment.Id);
+
             if (team == null)
                 return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
-            var teamMembers = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == teamId).ToListAsync();
+            var teamMembers = await _dbContext.Students.Include(s => s.AppUser)
+                                                       .Where(s => s.TeamId == teamId && s.AcademicAppointmentId == activeAcademicAppointment.Id)
+                                                       .ToListAsync();
+
             if (teamMembers == null || !teamMembers.Any())
                 return NotFound(CreateErrorResponse404NotFound("No team members found for this team."));
 
@@ -93,7 +112,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team and team members found.", new { IsSuccess = true, Team = teamWithMembers }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("CreateTeam")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto model)
@@ -124,11 +143,17 @@ namespace GradingManagementSystem.APIs.Controllers
             if(teamExists?.LeaderId != null && teamExists?.LeaderId == student.Id)
                 return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of this team."));
 
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                            .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
             var teamCreated = new Team
             {
                 Name = model.TeamName,
                 Specialty = student.Specialty,
                 LeaderId = student.Id,
+                AcademicAppointmentId = activeAcademicAppointment?.Id,
             };
 
             await _unitOfWork.Repository<Team>().AddAsync(teamCreated);
@@ -140,7 +165,9 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork.Repository<Student>().Update(student);
             await _unitOfWork.CompleteAsync();
 
-            var TeamInvitationsForStudent = await _unitOfWork.Repository<Invitation>().FindAllAsync(i => i.StudentId == student.Id);
+            var TeamInvitationsForStudent = await _unitOfWork.Repository<Invitation>()
+                                                             .FindAllAsync(i => i.StudentId == student.Id);
+            
             foreach (var ti in TeamInvitationsForStudent)
                 ti.Status = "Rejected";
 
@@ -149,7 +176,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Team {teamCreated?.Name} created successfully, You're leader of this team.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("DoctorTeams")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorThatSupervisionOnThem()
@@ -169,7 +196,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams retrieved successfully.", new { IsSuccess = true, Teams = TeamsList }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("InviteStudent")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SendInvitation([FromBody] InviteStudentDto model)
@@ -206,11 +233,17 @@ namespace GradingManagementSystem.APIs.Controllers
             if (existingInvitation != null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invitation already exists."));
 
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                            .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
             var invitation = new Invitation
             {
                 TeamId = model.TeamId,
                 StudentId = model.StudentId,
                 LeaderId = model.LeaderId,
+                AcademicAppointmentId = activeAcademicAppointment?.Id,
             };
 
             await _unitOfWork.Repository<Invitation>().AddAsync(invitation);
@@ -219,7 +252,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Invitation sent successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("TeamInvitations")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetTeamInvitations()
@@ -232,13 +265,20 @@ namespace GradingManagementSystem.APIs.Controllers
             if (student == null)
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                             .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
             var invitations = await _dbContext.Invitations
                                     .Include(i => i.Team)
                                         .ThenInclude(t => t.Students)
                                             .ThenInclude(s => s.AppUser)
                                     .Include(i => i.Leader)
                                         .ThenInclude(l => l.AppUser)
-                                    .Where(i => i.StudentId == student.Id && i.Status == StatusType.Pending.ToString())
+                                    .Where(i => i.StudentId == student.Id &&
+                                           i.Status == StatusType.Pending.ToString() &&
+                                           i.AcademicAppointmentId == activeAcademicAppointment.Id)
                                     .OrderDescending()
                                     .ToListAsync();
 
@@ -269,7 +309,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team invitations retrieved successfully.", new { IsSuccess = true, Invitations = result }));
         }
 
-        // Finished / Reviewed  / Tested
+        // Finished / Reviewed  / Tested / Edited
         [HttpPut("ReviewTeamInvitation")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> ReviewTeamInvitation([FromBody] ReviewTeamInvitationDto model)

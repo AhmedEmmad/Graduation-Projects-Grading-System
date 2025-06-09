@@ -25,7 +25,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("CreateTask")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> DoctorCreateTaskForStudents([FromForm] CreateTaskDto model)
@@ -44,6 +44,11 @@ namespace GradingManagementSystem.APIs.Controllers
             if (team == null)
                 return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
+            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                             .FindAsync(a => a.Status == "Active");
+            if (activeAcademicAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+
             var task = new TaskItem
             {
                 Name = model.Name,
@@ -51,6 +56,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 Deadline = model.Deadline,
                 SupervisorId = model.SupervisorId,
                 TeamId = model.TeamId,
+                AcademicAppointmentId = activeAcademicAppointment.Id,
             };
 
             var result = await _taskService.CreateTaskAsync(task, model.StudentIds);
@@ -60,7 +66,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("TeamTasks/{teamId}")]
         [Authorize(Roles = "Doctor, Student")]
         public async Task<IActionResult> GetAllTeamTasks(int teamId)
@@ -76,7 +82,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPut("ReviewTask/{taskId}/{studentId}")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> ReviewTask(int taskId, int studentId)

@@ -22,7 +22,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
         
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("Create")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateNewCriteria([FromBody] CreateCriteriaDto model)
@@ -44,7 +44,6 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest($"Criteria with the same name and evaluator already exists for this specialty: '{model.Specialty}' and given to '{model.GivenTo}'."));
 
             var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
-
             if (activeAppointment == null)
                 return BadRequest(CreateErrorResponse400BadRequest("You can't create a criteria in this time because no active academic appointment exists."));
 
@@ -86,7 +85,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Criteria '{newCriteria.Name}' created successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllCriteriaList()
@@ -116,7 +115,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true, criteriaList }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllForStudent")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllCriteriaListForStudentBasedOnYourSpecialty()
@@ -153,8 +152,8 @@ namespace GradingManagementSystem.APIs.Controllers
 
             return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true , criteriaList }));
         }
-        
-        // Finished / Reviewed / Tested
+
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("{criteriaId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetCriteriaById(int criteriaId)
@@ -184,7 +183,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria retrieved successfully.", new { IsSuccess = true , criteria }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPut("Update")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateExistingCriteria([FromBody] UpdateCriteriaDto model)
@@ -221,7 +220,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Criteria updated successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpDelete("Delete/{criteriaId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteExistingCriteria(int criteriaId)

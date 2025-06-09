@@ -20,8 +20,14 @@ namespace GradingManagementSystem.Repository
             if (role == null)
                 return Enumerable.Empty<NotificationResponseDto>();
 
+            var activeAppointment = await _dbContext.AcademicAppointments
+                .Where(a => a.Status == "Active")
+                .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return Enumerable.Empty<NotificationResponseDto>();
+
             var notifications = await _dbContext.Notifications
-           .Where(n => n.Role == role)
+           .Where(n => n.Role == role && n.AcademicAppointmentId == activeAppointment.Id)
            .OrderByDescending(n => n.SentAt)
            .ToListAsync();
             return notifications.Select(notification => new NotificationResponseDto

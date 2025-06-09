@@ -28,8 +28,8 @@ namespace GradingManagementSystem.APIs.Controllers
             _hubContext = hubContext;
             _notificationRepository = notificationRepository;
         }
-        
-        // Finished / Reviewed / Tested
+
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("SendNotification")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> SendNotification([FromBody] NotificationDto model)
@@ -67,6 +67,13 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
             }
 
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+            {
+                Console.WriteLine("No active academic appointment found.");
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
+            }
+
             // Create new notification
             var newNotification = new Notification
             {
@@ -75,7 +82,8 @@ namespace GradingManagementSystem.APIs.Controllers
                 Role = model?.Role == NotificationRole.All.ToString() ? NotificationRole.All.ToString() :
                        model?.Role == NotificationRole.Doctors.ToString() ? NotificationRole.Doctors.ToString()
                        : NotificationRole.Students.ToString(),
-                AdminId = admin?.Id
+                AdminId = admin?.Id,
+                AcademicAppointmentId = activeAppointment?.Id,
             };
 
             // Save notification in the database
@@ -97,10 +105,10 @@ namespace GradingManagementSystem.APIs.Controllers
             Console.WriteLine($"Sending notification to group: {newNotification.Role}");
             await _hubContext.Clients.Group(newNotification.Role).SendAsync("ReceiveNotification", notificationDto);
 
-                return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, "Notification sent successfully!", new { IsSuccess = true }));
         }
-        
-        // Finished / Reviewed / Tested
+
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Doctor, Student")]
         public async Task<IActionResult> GetAllNotifications()
@@ -115,7 +123,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("StudentNotifications")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentNotifications()
@@ -130,7 +138,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Student notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("DoctorNotifications")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetDoctorNotifications()
@@ -145,12 +153,12 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
-        // Finished / Reviewed / Tested
-        [HttpPut("MarkAsRead/{notificationId}")]
-        [Authorize(Roles = "Doctor, Student")]
-        public async Task<IActionResult> MarkAsRead(int notificationId)
+        // Finished / Reviewed / Tested / Edited
+        [HttpPut("MarkAsRead")]
+        [Authorize(Roles = "Admin, Doctor, Student")]
+        public async Task<IActionResult> MarkAsRead([FromBody] UpdateNotificationDto model)
         {
-            var notification = await _unitOfWork.Repository<Notification>().FindAsync(n => n.Id == notificationId);
+            var notification = await _unitOfWork.Repository<Notification>().FindAsync(n => n.Id == model.NotificationId);
             if (notification == null)
                 return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 
@@ -164,12 +172,12 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Notification marked as read successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
-        [HttpDelete("Delete/{notificationId}")]
-        [Authorize(Roles = "Doctor, Student")]
-        public async Task<IActionResult> DeleteNotification(int notificationId)
+        // Finished / Reviewed / Tested / Edited
+        [HttpDelete("Delete")]
+        [Authorize(Roles = "Admin, Doctor, Student")]
+        public async Task<IActionResult> DeleteNotification([FromBody] UpdateNotificationDto model)
         {
-            var notification = await _unitOfWork.Repository<Notification>().GetByIdAsync(notificationId);
+            var notification = await _unitOfWork.Repository<Notification>().FindAsync(n => n.Id == model.NotificationId);
             if (notification == null)
                 return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 

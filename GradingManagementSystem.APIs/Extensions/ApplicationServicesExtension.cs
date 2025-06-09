@@ -21,6 +21,7 @@ namespace GradingManagementSystem.APIs.Extensions
                 //options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"));
             });
 
+
             Services.AddControllers()
                     .ConfigureApiBehaviorOptions(options =>
                     {

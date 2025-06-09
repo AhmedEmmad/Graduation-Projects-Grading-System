@@ -22,25 +22,25 @@ namespace GradingManagementSystem.APIs
 
                 builder.Services.AddIdentityServices(builder.Configuration);
 
-            //#region CORS Configuation
-            //builder.Services.AddCors(options =>
-            //{
-            //    options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
-            //});
-            //#endregion
+                #region OLD - CORS Configuation
+                //builder.Services.AddCors(options =>
+                //{
+                //    options.AddPolicy("CorsPolicy", policy => policy.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin());
+                //});
+                #endregion
 
-            #region CORS Configuation
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("CorsPolicy", policy =>
-                {
-                    policy.WithOrigins("http://localhost:4200", "https://graduation-project-angular.vercel.app")
-                          .AllowAnyHeader()
-                          .AllowAnyMethod()
-                          .AllowCredentials();
-                });
-            });
-            #endregion
+                #region CORS Configuation
+                    builder.Services.AddCors(options =>
+                    {
+                        options.AddPolicy("CorsPolicy", policy =>
+                        {
+                            policy.WithOrigins("http://localhost:4200", "https://graduation-project-angular.vercel.app")
+                                  .AllowAnyHeader()
+                                  .AllowAnyMethod()
+                                  .AllowCredentials();
+                        });
+                    });
+                #endregion
 
             #endregion
 

@@ -17,11 +17,19 @@ namespace GradingManagementSystem.Repository
             _dbContext = dbContext;
         }
 
-        public async Task<AdminProfileDto?> GetAdminProfileAsync(string userId, AcademicAppointment? currentAppointment)
+        public async Task<AdminProfileDto?> GetAdminProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime)
         {
             var adminUser = await _dbContext.Users.Include(u => u.Admin).FirstOrDefaultAsync(u => u.Id == userId);
             if (adminUser == null)
                 return null;
+
+            string currentTerm = string.Empty;
+            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
+                currentTerm = "First-Term";
+            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
+                currentTerm = "Second-Term";
+            else
+                currentTerm = "Invalid-Term";
 
             return new AdminProfileDto
             {
@@ -32,15 +40,23 @@ namespace GradingManagementSystem.Repository
                 Role = "Admin",
                 ProfilePicture = adminUser.ProfilePicture,
                 CurrentAcademicYear = currentAppointment?.Year,
-
+                CurrentAcademicTerm = currentTerm,
             };
         }
 
-        public async Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId, AcademicAppointment? currentAppointment)
+        public async Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime)
         {
             var doctorUser = await _dbContext.Users.Include(u => u.Doctor).FirstOrDefaultAsync(u => u.Id == userId);
             if (doctorUser == null)
                 return null;
+
+            string currentTerm = string.Empty;
+            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
+                currentTerm = "First-Term";
+            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
+                currentTerm = "Second-Term";
+            else
+                currentTerm = "Invalid-Term";
 
             return new DoctorProfileDto
             {
@@ -51,10 +67,11 @@ namespace GradingManagementSystem.Repository
                 EnrollmentDate = doctorUser.Doctor.EnrollmentDate,
                 ProfilePicture = doctorUser.ProfilePicture,
                 CurrentAcademicYear = currentAppointment?.Year,
+                CurrentAcademicTerm = currentTerm,
             };
         }
 
-        public async Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment)
+        public async Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime)
         {
             var studentUser = await _dbContext.Users
                 .Include(u => u.Student)
@@ -62,6 +79,14 @@ namespace GradingManagementSystem.Repository
                 .FirstOrDefaultAsync(u => u.Id == userId);
             if (studentUser == null || studentUser.Student == null)
                 return null;
+
+            string currentTerm = string.Empty;
+            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
+                currentTerm = "First-Term";
+            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
+                currentTerm = "Second-Term";
+            else
+                currentTerm = "Invalid-Term";
 
             return new StudentProfileDto
             {
@@ -77,6 +102,7 @@ namespace GradingManagementSystem.Repository
                 InTeam = studentUser.Student.InTeam,
                 Specialty = studentUser.Specialty,
                 CurrentAcademicYear = currentAppointment?.Year,
+                CurrentAcademicTerm = currentTerm,
             };
         }
 

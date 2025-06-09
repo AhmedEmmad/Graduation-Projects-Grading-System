@@ -22,7 +22,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllDoctorSchedules")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllDoctorSchedules()
@@ -39,7 +39,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (activeAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic year appointment found."));
 
-            var doctorSchedules = await _dbContext.CommitteeDoctorSchedules
+            var doctorSchedules = await _dbContext.CommitteeDoctorSchedules.Where(cds => cds.Schedule.AcademicAppointmentId == activeAppointment.Id)
                 .Include(ds => ds.Schedule)
                     .ThenInclude(s => s.Team)
                         .ThenInclude(t => t.FinalProjectIdea)
@@ -104,8 +104,7 @@ namespace GradingManagementSystem.APIs.Controllers
             }));
         }
 
-
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllStudentSchedules")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllStudentSchedules()
@@ -118,6 +117,10 @@ namespace GradingManagementSystem.APIs.Controllers
             if (student == null)
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic year appointment found."));
+
             var studentSchedules = await _dbContext.Schedules
                                                    .Include(s => s.Team)
                                                         .ThenInclude(t => t.FinalProjectIdea)
@@ -129,7 +132,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                                                 .ThenInclude(st => st.AppUser)
                                                     .Include(s => s.CommitteeDoctorSchedules)
                                                         .ThenInclude(cds => cds.Doctor)
-                                                   .Where(s => s.Team.Students.Any(st => st.Id == student.Id))
+                                                   .Where(s => s.Team.Students.Any(st => st.Id == student.Id) &&
+                                                               s.AcademicAppointmentId == activeAppointment.Id)
                                                    .AsSplitQuery()
                                                    .ToListAsync();
 
@@ -164,7 +168,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = schedules }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("CreateSchedule")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateSchedule([FromBody] CreateScheduleDto model)
@@ -249,6 +253,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Schedule created successfully for this team .", new { IsSuccess = true }));
         }
 
+
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {
             return new ApiResponse(400, message, new { IsSuccess = false });
@@ -258,6 +263,5 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             return new ApiResponse(404, message, new { IsSuccess = false });
         }
-          
     }
 }

@@ -14,7 +14,7 @@
         public bool InTeam { get; set; }
         public string? Specialty { get; set; }
         public string? CurrentAcademicYear { get; set; }
-        public string? CurrentAcademicSemester { get; set; }
+        public string? CurrentAcademicTerm { get; set; }
     }
 
 }

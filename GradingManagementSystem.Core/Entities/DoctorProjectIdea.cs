@@ -9,11 +9,13 @@
         public bool Taken { get; set; } = false;
 
         public int DoctorId { get; set; } // Foreign Key Of Id In Doctor Table
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties
         public Doctor Doctor { get; set; }
         public ICollection<TeamRequestDoctorProjectIdea> TeamsRequestDoctorProjectIdeas { get; set; }
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
 }

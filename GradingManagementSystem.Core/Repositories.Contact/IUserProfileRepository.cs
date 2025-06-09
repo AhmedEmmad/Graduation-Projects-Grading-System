@@ -6,9 +6,9 @@ namespace GradingManagementSystem.Core.Repositories.Contact
 {
     public interface IUserProfileRepository : IGenericRepository<AppUser>
     {
-        Task<AdminProfileDto?> GetAdminProfileAsync(string userId, AcademicAppointment? currentAppointment); 
-        Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId, AcademicAppointment? currentAppointment); 
-        Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment);
+        Task<AdminProfileDto?> GetAdminProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime); 
+        Task<DoctorProfileDto?> GetDoctorProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime); 
+        Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime);
         Task<AppUser?> GetAppUserAsync(string userId);
     }
 }

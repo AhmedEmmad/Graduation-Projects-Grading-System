@@ -31,28 +31,26 @@ namespace GradingManagementSystem.Service
             _dbContext = dbContext;
         }
 
-        public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole, string timezoneId)
+        public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole)
         {
-            var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
-            if (timezone == null)
-                return new ApiResponse(400, "Timezone is invalid.", new { IsSuccess = false });
-            var currentTime = TimeZoneInfo.ConvertTime(DateTime.UtcNow, timezone);
+            var currentTime = DateTime.Now;
+            var activeAppointment = await _dbContext.AcademicAppointments
+                                                     .Where(a => a.Status == "Active")
+                                                     .FirstOrDefaultAsync();
 
-            var activeAppointments = await _dbContext.AcademicAppointments
-            .Where(a => a.Status == "Active")
-            .ToListAsync();
+            if (activeAppointment == null)
+                return new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false });
 
-            var currentAppointment = activeAppointments.FirstOrDefault(a =>
-            (currentTime >= a.FirstTermStart && currentTime <= a.FirstTermEnd) ||
-            (currentTime >= a.SecondTermStart && currentTime <= a.SecondTermEnd));
-
+            if (activeAppointment.FirstTermStart > currentTime || activeAppointment.SecondTermEnd < currentTime)
+                return new ApiResponse(400, "Current time is not within the active academic appointment period.", new { IsSuccess = false });
+       
             object? userProfile = null;
             if (userRole == "Admin")
-                userProfile = await _userProfileRepository.GetAdminProfileAsync(userId, currentAppointment);
+                userProfile = await _userProfileRepository.GetAdminProfileAsync(userId, activeAppointment, currentTime);
             else if (userRole == "Doctor")
-                userProfile = await _userProfileRepository.GetDoctorProfileAsync(userId, currentAppointment);
+                userProfile = await _userProfileRepository.GetDoctorProfileAsync(userId, activeAppointment, currentTime);
             else if (userRole == "Student")
-                userProfile = await _userProfileRepository.GetStudentProfileAsync(userId, currentAppointment);
+                userProfile = await _userProfileRepository.GetStudentProfileAsync(userId, activeAppointment, currentTime);
             else
                 return new ApiResponse(400, "Invalid user role.", new { IsSuccess = false });
 

@@ -9,6 +9,6 @@
         public string? Role { get; set; }
         public string? ProfilePicture { get; set; }
         public string? CurrentAcademicYear { get; set; }
-        public string? CurrentAcademicSemester { get; set; }
+        public string? CurrentAcademicTerm { get; set; }
     }
 }

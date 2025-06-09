@@ -24,7 +24,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Reviewed / Tested  
+        // Finished / Reviewed / Tested / Edited 
         [HttpGet("AllTeamsForDoctorSupervisionEvaluation")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorSupervisionEvaluation()
@@ -49,9 +49,11 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
             var supervisorScheduleIds = await _dbContext.CommitteeDoctorSchedules
-                .Where(cds => cds.DoctorId == evaluatorId && cds.DoctorRole == "Supervisor")
-                .Select(cds => cds.ScheduleId)
-                .ToListAsync();
+                                                        .Where(cds => cds.DoctorId == evaluatorId &&
+                                                                      cds.DoctorRole == "Supervisor" &&
+                                                                      cds.Schedule.AcademicAppointmentId == activeAppointment.Id)
+                                                        .Select(cds => cds.ScheduleId)
+                                                        .ToListAsync();
 
             var supervisedTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
@@ -60,6 +62,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     .ThenInclude(s => s.AppUser)
                 .Where(t => t.SupervisorId == evaluatorId &&
                        t.HasProject &&
+                       t.AcademicAppointmentId == activeAppointment.Id &&
                        t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id) &&
                        t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
                 .AsNoTracking()
@@ -70,9 +73,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var teamSpecialties = supervisedTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Supervisor" &&
-                       teamSpecialties.Contains(c.Specialty) &&
-                       c.AcademicAppointmentId == activeAppointment.Id)
+                .Where(c => c.IsActive &&
+                            c.Evaluator == "Supervisor" &&
+                            teamSpecialties.Contains(c.Specialty) &&
+                            c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -141,22 +145,10 @@ namespace GradingManagementSystem.APIs.Controllers
                     }).ToList()
             }).ToList();
 
-            //// Update the status of schedules to "Finished"  
-            //var schedulesToUpdate = await _dbContext.Schedules
-            //    .Where(s => supervisorScheduleIds.Contains(s.Id) && s.Status != "Finished")
-            //    .ToListAsync();
-
-            //foreach (var schedule in schedulesToUpdate)
-            //{
-            //    schedule.Status = "Finished";
-            //}
-
-            //await _dbContext.SaveChangesAsync();
-
             return Ok(new ApiResponse(200, "Supervision teams retrieved successfully.", new { IsSuccess = true, supervisorTeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllTeamsForDoctorExaminationEvaluation")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorExaminationEvaluation()
@@ -181,7 +173,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
             var examinerScheduleIds = await _dbContext.CommitteeDoctorSchedules
-                .Where(cds => cds.DoctorId == evaluatorId && cds.DoctorRole == "Examiner")
+                .Where(cds => cds.DoctorId == evaluatorId &&
+                              cds.DoctorRole == "Examiner" &&
+                              cds.Schedule.AcademicAppointmentId == activeAppointment.Id)
                 .Select(cds => cds.ScheduleId)
                 .ToListAsync();
 
@@ -195,7 +189,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.Schedules.Any(s => examinerScheduleIds.Contains(s.Id)) && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
+                .Where(t => t.Schedules.Any(s => examinerScheduleIds.Contains(s.Id)) &&
+                            t.AcademicAppointmentId == activeAppointment.Id &&
+                            t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -204,7 +200,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var teamSpecialties = examinationTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Examiner" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
+                .Where(c => c.IsActive &&
+                            c.Evaluator == "Examiner" &&
+                            teamSpecialties.Contains(c.Specialty) &&
+                            c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -288,7 +287,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, examinerTeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("AllTeamsForAdminEvaluation")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAllTeamsForAdminEvaluation()
@@ -313,8 +312,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
             var examinerScheduleIds = await _dbContext.CommitteeDoctorSchedules
-                .Select(cds => cds.ScheduleId)
-                .ToListAsync();
+                                                      .Where(cds => cds.Schedule.AcademicAppointmentId == activeAppointment.Id)
+                                                      .Select(cds => cds.ScheduleId)
+                                                      .ToListAsync();
 
             var adminTeams = await _dbContext.Teams
                 .Include(t => t.FinalProjectIdea)
@@ -323,18 +323,21 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Include(t => t.Schedules)
                 .Include(t => t.Students)
                     .ThenInclude(s => s.AppUser)
-                .Where(t => t.HasProject && t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
+                .Where(t => t.HasProject &&
+                            t.AcademicAppointmentId == activeAppointment.Id &&
+                            t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
             if (adminTeams == null || !adminTeams.Any())
                 return NotFound(new ApiResponse(404, "No teams found for Admin evaluation.", new { IsSuccess = false }));
 
-
-            // Fetch active criteria for admin evaluation
             var teamSpecialties = adminTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
-                .Where(c => c.IsActive && c.Evaluator == "Admin" && teamSpecialties.Contains(c.Specialty) && c.AcademicAppointmentId == activeAppointment.Id)
+                .Where(c => c.IsActive &&
+                            c.Evaluator == "Admin" &&
+                            teamSpecialties.Contains(c.Specialty) &&
+                            c.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -403,7 +406,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("TeamEvaluations/{teamId}/{scheduleId}")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> GetTeamEvaluations(int teamId, int scheduleId)
@@ -418,6 +421,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             int evaluatorId = 0;
             string evaluatorRole = string.Empty;
+
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
             if (appUserRole == "Admin")
             {
@@ -436,7 +443,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 var schedule = await _dbContext.Schedules
                                                .Include(s => s.CommitteeDoctorSchedules)
                                                .Include(s => s.Team)
-                                               .FirstOrDefaultAsync(s => s.Id == scheduleId);
+                                               .FirstOrDefaultAsync(s => s.Id == scheduleId && s.AcademicAppointmentId == activeAppointment.Id);
 
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
@@ -470,7 +477,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                                            e.ScheduleId == scheduleId &&
                                                            e.AdminEvaluatorId == evaluatorId &&
                                                            e.DoctorEvaluatorId == null &&
-                                                           e.EvaluatorRole == evaluatorRole)
+                                                           e.EvaluatorRole == evaluatorRole &&
+                                                           e.AcademicAppointmentId == activeAppointment.Id)
                                                     .AsNoTracking()
                                                     .ToListAsync();
             }
@@ -482,7 +490,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                                            e.ScheduleId == scheduleId &&
                                                            e.AdminEvaluatorId == null &&
                                                            e.DoctorEvaluatorId == evaluatorId &&
-                                                           e.EvaluatorRole == evaluatorRole)
+                                                           e.EvaluatorRole == evaluatorRole &&
+                                                           e.AcademicAppointmentId == activeAppointment.Id)
                                                     .AsNoTracking()
                                                     .ToListAsync();
             }
@@ -509,7 +518,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Last evaluations retrieved successfully.", new { IsSuccess = true, evaluations }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpPost("SubmitGrades")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> SubmitGrades([FromBody] SubmitEvaluationDto model)
@@ -528,6 +537,10 @@ namespace GradingManagementSystem.APIs.Controllers
             int evaluatorId = 0;
             string evaluatorRole = string.Empty;
 
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
+
             if (appUserRole == "Admin")
             {
                 var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
@@ -545,7 +558,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 var schedule = await _dbContext.Schedules
                     .Include(s => s.CommitteeDoctorSchedules)
                     .Include(s => s.Team)
-                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId);
+                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId && s.AcademicAppointmentId == activeAppointment.Id);
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
@@ -572,7 +585,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                               e.StudentId == model.StudentId &&
                                               e.EvaluatorRole == evaluatorRole &&
                                               (e.AdminEvaluatorId == evaluatorId || e.AdminEvaluatorId == null) &&
-                                              (e.DoctorEvaluatorId == evaluatorId || e.DoctorEvaluatorId == null));
+                                              (e.DoctorEvaluatorId == evaluatorId || e.DoctorEvaluatorId == null) &&
+                                              e.AcademicAppointmentId == activeAppointment.Id);
 
                 if (existingEvaluation != null)
                 {
@@ -586,16 +600,14 @@ namespace GradingManagementSystem.APIs.Controllers
                 else
                 {
                     // Proceed to add the new evaluation
-                    var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId);
+                    var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId &&
+                                                                                       c.AcademicAppointmentId == activeAppointment.Id);
                     if (criteria == null)
                         return NotFound(new ApiResponse(404, $"Criteria not found.", new { IsSuccess = false }));
 
                     if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
                         return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
-
-                    var currentActiveAcademicYearAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
-                    if (currentActiveAcademicYearAppointment == null)
-                        return BadRequest(new ApiResponse(400, "Can not evaluate now.", new { IsSuccess = false }));
+                    
                     var newEvaluation = new Evaluation
                     {
                         ScheduleId = model.ScheduleId,
@@ -606,7 +618,7 @@ namespace GradingManagementSystem.APIs.Controllers
                         StudentId = model.StudentId,
                         TeamId = model.TeamId,
                         Grade = gradeItem.Grade,
-                        //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
+                        AcademicAppointmentId = activeAppointment.Id,
                     };
 
                     await _dbContext.Evaluations.AddAsync(newEvaluation);
@@ -628,7 +640,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Grades submitted successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("StudentGrades")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetStudentGrades()
@@ -649,12 +661,16 @@ namespace GradingManagementSystem.APIs.Controllers
             var studentId = student.Id;
             var teamId = student.TeamId;
 
-            // Fetch all evaluations for the student (individual and team-based)
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
+
             var evaluations = await _dbContext.Evaluations
-                .Include(e => e.Criteria)
-                .Where(e => e.StudentId == studentId || (e.TeamId == teamId && e.TeamId != null))
-                .AsNoTracking()
-                .ToListAsync();
+                                                .Include(e => e.Criteria)
+                                                .Where(e => (e.StudentId == studentId || (e.TeamId == teamId && e.TeamId != null)) &&
+                                                            e.AcademicAppointmentId == activeAppointment.Id)
+                                                .AsNoTracking()
+                                                .ToListAsync();
 
             if (evaluations == null || !evaluations.Any())
                 return NotFound(new ApiResponse(404, "No grades found for the student.", new { IsSuccess = false }));
@@ -715,7 +731,7 @@ namespace GradingManagementSystem.APIs.Controllers
                         CriteriaDescription = criteria.Description,
                         GivenTo = criteria.GivenTo,
                         MaximumGrade = criteria.MaxGrade,
-                        Grade = averageGrade,
+                        Grade = Math.Round(averageGrade),
                         EvaluatorRole = "Examiner"
                     };
                 });
@@ -728,7 +744,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Student grades retrieved successfully.", new { IsSuccess = true, Grades = combinedEvaluations }));
         }
 
-
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("ExportGradesForSpecialty/{specialty}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ExportGradesForSpecialty(string specialty)
@@ -754,7 +770,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                                     t.Schedules.Any(s => s.IsActive &&
                                                                     s.AcademicAppointmentId == activeAppointment.Id &&
                                                                     s.Status == "Finished"
-                                                                   )
+                                                                   ) &&
+                                                    t.AcademicAppointmentId == activeAppointment.Id
                                                )
                                         .AsNoTracking()
                                         .OrderBy(t => t.Name)

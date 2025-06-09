@@ -11,11 +11,13 @@ namespace GradingManagementSystem.Core.Entities
         
         public string? ProjectName { get; set; }
         public string? ProjectDescription { get; set; }
-        public int? TeamRequestDoctorProjectIdeaId { get; set; }
-        public int? TeamProjectIdeaId { get; set; }
-        public int? SupervisorId { get; set; }
-        public int? TeamId { get; set; }
-        
+        public int? TeamRequestDoctorProjectIdeaId { get; set; } // Foreign Key Of Id In TeamRequestDoctorProjectIdea Table
+        public int? TeamProjectIdeaId { get; set; } // Foreign Key Of Id In TeamProjectIdea Table
+        public int? SupervisorId { get; set; } // Foreign Key Of Id In Doctor Table
+        public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
+
+
         public string? PostedBy { get; set; }
 
 
@@ -24,6 +26,7 @@ namespace GradingManagementSystem.Core.Entities
         public TeamRequestDoctorProjectIdea TeamRequestDoctorProjectIdea { get; set; }
         public Doctor Supervisor { get; set; }
         public Team Team { get; set; }
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
 }

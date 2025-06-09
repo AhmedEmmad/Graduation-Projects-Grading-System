@@ -17,6 +17,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork = unitOfWork;
         }
 
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Doctor")]
         public async Task<IActionResult> GetAllDoctors()

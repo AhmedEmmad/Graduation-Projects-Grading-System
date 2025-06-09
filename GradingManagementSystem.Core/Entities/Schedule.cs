@@ -9,7 +9,7 @@
         public string Status { get; set; } = StatusType.Upcoming.ToString(); // "Upcoming", "Finished"
         
         public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
-        public int? AcademicAppointmentId { get; set; }
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties

@@ -7,19 +7,16 @@ namespace GradingManagementSystem.Repository.Data.DbContexts
 {
     public class GradingManagementSystemDbContextFactory : IDesignTimeDbContextFactory<GradingManagementSystemDbContext>
     {
-        private readonly IConfiguration _configuration;
-
-        public GradingManagementSystemDbContextFactory(IConfiguration configuration)
+        public GradingManagementSystemDbContextFactory()
         {
-            _configuration = configuration;
+           
         }
+
         public GradingManagementSystemDbContext CreateDbContext(string[] args)
         {
-
             var optionsBuilder = new DbContextOptionsBuilder<GradingManagementSystemDbContext>();
-            var connectionString = _configuration.GetConnectionString("MonsterConnection");
 
-            optionsBuilder.UseSqlServer(connectionString);
+            optionsBuilder.UseSqlServer("Server = db15279.public.databaseasp.net; Database=db15279; User Id = db15279; Password=4z=RZ?2x%5yX; Encrypt=True; TrustServerCertificate=True; MultipleActiveResultSets=True;");
 
             return new GradingManagementSystemDbContext(optionsBuilder.Options);
         }

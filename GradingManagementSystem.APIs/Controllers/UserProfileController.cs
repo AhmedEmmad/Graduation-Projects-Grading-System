@@ -18,19 +18,11 @@ namespace GradingManagementSystem.APIs.Controllers
             _userProfileService = userProfileService;
         }
 
+        // Finished / Reviewed / Tested / Edited
         [HttpGet("GetProfile")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> GetProfile()
         {
-            //var userTimezone = _Request.Headers["X-Timezone"].ToString();
-            //var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById(userTimezone);
-            //var userTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, timeZoneInfo);
-
-            var timezoneId = Request.Headers["X-User-Timezone"].FirstOrDefault();
-            if (string.IsNullOrEmpty(timezoneId))
-                return BadRequest(new ApiResponse(400, "Timezone is invalid.", new { IsSuccess = false }));
-
-
             var userId = User.FindFirst("UserId")?.Value;
             var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (string.IsNullOrEmpty(userId))
@@ -38,7 +30,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (string.IsNullOrEmpty(userRole))
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var profileResponse = await _userProfileService.GetUserProfileAsync(userId, userRole, timezoneId);
+            var profileResponse = await _userProfileService.GetUserProfileAsync(userId, userRole);
 
             if (profileResponse.StatusCode == 401)
                 return Unauthorized(profileResponse);
@@ -50,6 +42,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(profileResponse);
         }
 
+        // Finished / Reviewed / Tested / Edited
         [HttpPut("ChangeUsername")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangeUsername([FromBody] ChangeUsernameDto model)
@@ -78,6 +71,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(responseResult);
         }
 
+        // Finished / Reviewed / Tested / Edited
         [HttpPut("ChangePassword")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
@@ -104,6 +98,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(responseResult);
         }
 
+        // Finished / Reviewed / Tested / Edited
         [HttpPut("ChangeProfilePicture")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangeProfilePicture([FromForm] ChangeProfilePictureDto model)

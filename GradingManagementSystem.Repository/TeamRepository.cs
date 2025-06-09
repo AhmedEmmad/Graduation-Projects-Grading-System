@@ -17,9 +17,14 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<TeamWithMembersDto>> GetAllTeamsForDoctorAsync(int doctorId)
         {
+            var activeAppointment = await _dbContext.AcademicAppointments.Where(a => a.Status == "Active")
+                                                                        .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return Enumerable.Empty<TeamWithMembersDto>();
+
             var teams = await _dbContext.Teams.Include(t => t.Students)
                                                     .ThenInclude(s => s.AppUser)
-                                              .Where(t => t.SupervisorId == doctorId)
+                                              .Where(t => t.SupervisorId == doctorId && t.AcademicAppointmentId == activeAppointment.Id)
                                               .OrderDescending()
                                               .ToListAsync();
 

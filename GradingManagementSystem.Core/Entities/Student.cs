@@ -13,6 +13,7 @@ namespace GradingManagementSystem.Core.Entities
         public string? AppUserId { get; set; } // Foreign Key Of Id In AspNetUsers Table
         public int? TeamId { get; set; } = null; // Foreign Key Of Id In Team Table
         public int? LeaderOfTeamId { get; set; } = null; // Foreign Key Of Id In Team Table To Represent Leader Of Team
+        public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation properties
@@ -23,6 +24,7 @@ namespace GradingManagementSystem.Core.Entities
         public ICollection<TeamRequestDoctorProjectIdea> TeamsRequestDoctorProjectIdeas { get; set; }
         public ICollection<TaskMember> TaskMembers { get; set; } = new HashSet<TaskMember>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
+        public AcademicAppointment AcademicAppointment { get; set; }
         #endregion
     }
 }

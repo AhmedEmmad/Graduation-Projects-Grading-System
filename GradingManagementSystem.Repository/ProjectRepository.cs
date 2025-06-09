@@ -3,6 +3,7 @@ using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Repositories.Contact;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 
 namespace GradingManagementSystem.Repository
 {
@@ -17,9 +18,16 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<DoctorProjectIdeaDto>?> GetDoctorProjectIdeasByStatusAndDoctorIdIfNeededAsync(string status, int? doctorId = null)
         {
+            var activeAppointment = await _dbContext.AcademicAppointments
+                                                    .Where(a => a.Status == "Active")
+                                                    .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return null;
+
             if (status == "Pending")
             {
-                var pendingDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Pending")
+                var pendingDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Pending" &&
+                                                                                           p.AcademicAppointmentId == activeAppointment.Id)
                                                                                .Include(p => p.Doctor)
                                                                                .OrderByDescending(p => p.SubmissionDate)
                                                                                .ToListAsync();
@@ -39,7 +47,9 @@ namespace GradingManagementSystem.Repository
             {
                 if(doctorId != null)
                 {
-                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted" && p.DoctorId == doctorId)
+                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted" &&
+                                                                                                p.DoctorId == doctorId &&
+                                                                                                p.AcademicAppointmentId == activeAppointment.Id)
                                                                                     .Include(p => p.Doctor)
                                                                                     .OrderByDescending(p => p.SubmissionDate)
                                                                                     .ToListAsync();
@@ -57,7 +67,9 @@ namespace GradingManagementSystem.Repository
                 }
                 else
                 {
-                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted" && p.Taken == false)
+                    var acceptedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Accepted" &&
+                                                                                                p.Taken == false &&
+                                                                                                p.AcademicAppointmentId == activeAppointment.Id)
                                                                                     .Include(p => p.Doctor)
                                                                                     .OrderByDescending(p => p.SubmissionDate)
                                                                                     .ToListAsync();
@@ -78,7 +90,9 @@ namespace GradingManagementSystem.Repository
             {
                 if (doctorId != null)
                 {
-                    var rejectedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Rejected" && p.DoctorId == doctorId)
+                    var rejectedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Rejected" &&
+                                                                                                p.DoctorId == doctorId &&
+                                                                                                p.AcademicAppointmentId == activeAppointment.Id)
                                                                                     .Include(p => p.Doctor)
                                                                                     .OrderByDescending(p => p.SubmissionDate)
                                                                                     .ToListAsync();
@@ -96,7 +110,8 @@ namespace GradingManagementSystem.Repository
                 }
                 else
                 {
-                    var rejectedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Rejected")
+                    var rejectedDoctorProjects = await _dbContext.DoctorProjectIdeas.Where(p => p.Status == "Rejected" &&
+                                                                                                p.AcademicAppointmentId == activeAppointment.Id)
                                                                                     .Include(p => p.Doctor)
                                                                                     .OrderByDescending(p => p.SubmissionDate)
                                                                                     .ToListAsync();
@@ -118,9 +133,16 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<TeamProjectIdeaDto>?> GetTeamProjectIdeasByStatusAsync(string status)
         {
+            var activeAppointment = await _dbContext.AcademicAppointments
+                                                    .Where(a => a.Status == "Active")
+                                                    .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return null;
+
             if (status == StatusType.Pending.ToString())
             {
-                var pendingTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Pending.ToString())
+                var pendingTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Pending.ToString() &&
+                                                                                       p.AcademicAppointmentId == activeAppointment.Id)
                                                                            .Include(p => p.Leader)
                                                                            .Include(p => p.Team)
                                                                                 .ThenInclude(t => t.Supervisor)
@@ -144,7 +166,8 @@ namespace GradingManagementSystem.Repository
             }
             else if (status == StatusType.Accepted.ToString())
             {
-                var acceptedTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Accepted.ToString())
+                var acceptedTeamProjects = await _dbContext.TeamProjectIdeas.Where(p => p.Status == StatusType.Accepted.ToString() &&
+                                                                                        p.AcademicAppointmentId == activeAppointment.Id)
                                                                            .Include(p => p.Leader)
                                                                            .Include(p => p.Team)
                                                                            .OrderByDescending(p => p.SubmissionDate)
@@ -170,7 +193,15 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<TeamRequestForDoctorProjectIdeaDto>?> GetPendingTeamRequestsForDoctorProjectIdeasAsync(int doctorId)
         {
-            var pendingTeamRequests = await _dbContext.TeamsRequestDoctorProjectIdeas.Where(P => P.Status == "Pending" && P.DoctorId == doctorId)
+            var activeAppointment = await _dbContext.AcademicAppointments
+                                                    .Where(a => a.Status == "Active")
+                                                    .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return null;
+
+            var pendingTeamRequests = await _dbContext.TeamsRequestDoctorProjectIdeas.Where(P => P.Status == "Pending" &&
+                                                                                            P.DoctorId == doctorId &&
+                                                                                            P.AcademicAppointmentId == activeAppointment.Id)
                                                                               .Include(P => P.Team)
                                                                               .ThenInclude(T => T.Students)
                                                                               .ThenInclude(S => S.AppUser)
@@ -209,7 +240,14 @@ namespace GradingManagementSystem.Repository
 
         public async Task<IEnumerable<FinalProjectIdeaForAdminDto>?> GetAllFinalProjectIdeas()
         {
-            var finalProjects = await _dbContext.FinalProjectIdeas.Include(FP => FP.Supervisor)
+            var activeAppointment = await _dbContext.AcademicAppointments
+                                                    .Where(a => a.Status == "Active")
+                                                    .FirstOrDefaultAsync();
+            if (activeAppointment == null)
+                return null;
+
+            var finalProjects = await _dbContext.FinalProjectIdeas.Where(FP => FP.AcademicAppointmentId == activeAppointment.Id)
+                                                                  .Include(FP => FP.Supervisor)
                                                                   .Include(FP => FP.Team)
                                                                     .ThenInclude(T => T.Students)
                                                                     .ThenInclude(S => S.AppUser)
@@ -225,8 +263,8 @@ namespace GradingManagementSystem.Repository
                 SupervisorName = FP?.Supervisor?.FullName,
                 TeamId = FP?.TeamId,
                 TeamName = FP?.Team?.Name,
-                PostedBy = FP.PostedBy,
-                TeamMembers = FP.Team?.Students?.Select(S => new TeamMemberDto
+                PostedBy = FP?.PostedBy,
+                TeamMembers = FP?.Team?.Students?.Select(S => new TeamMemberDto
                 {
                     Id = S.Id,
                     FullName = S.FullName,

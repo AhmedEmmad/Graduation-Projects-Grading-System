@@ -18,7 +18,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _authService = authService;
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // Student Registration/Creation Flow/Logic
         [HttpPost("StudentRegister")]
         public async Task<IActionResult> StudentRegister([FromForm] StudentRegisterDto model)
@@ -38,7 +38,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // Doctor Registration Flow
         [HttpPost("DoctorRegister")]
         [Authorize(Roles = "Admin")]
@@ -59,7 +59,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // User Login Flow
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
@@ -78,7 +78,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // User ForgetPassword Flow
         [HttpPost("ForgetPassword")]
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto model)
@@ -98,7 +98,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // User ResetPassword Flow
         [HttpPost("ResetPassword")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
@@ -118,7 +118,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // Student Email Verification Flow
         [HttpPost("EmailVerificationByOtp/{otpCode}")]
         public async Task<IActionResult> VerifyEmailByOTP(string otpCode)
@@ -138,7 +138,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Tested
+        // Finished / Reviewed / Tested / Edited
         // Resend OTP Code Verification Flow
         [HttpPost("ResendOtp/{studentEmail}")]
         public async Task<IActionResult> ResendOtpCodeVerification(string studentEmail)

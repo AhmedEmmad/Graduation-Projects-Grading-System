@@ -86,7 +86,7 @@ namespace GradingManagementSystem.Service
             if (model.AppointmentId <= 0)
                 return CreateErrorResponse400BadRequest("Invalid appointment ID.");
 
-            var academicAppointment = _academicAppointmentRepository.FindAsync(a => a.Id == model.AppointmentId);
+            var academicAppointment = await _academicAppointmentRepository.FindAsync(a => a.Id == model.AppointmentId);
             if (academicAppointment == null)
                 return CreateErrorResponse404NotFound("Academic appointment not found.");
 
@@ -107,6 +107,7 @@ namespace GradingManagementSystem.Service
             await _unitOfWork.CompleteAsync();
             return new ApiResponse(200, $"This academic year appointment {academicYearAppointment.Year} set to active successfully.", new { IsSuccess = true });
         }
+
 
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {

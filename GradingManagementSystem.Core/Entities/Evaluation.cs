@@ -4,14 +4,15 @@
     {
         public int? ScheduleId { get; set; } // Foreign Key Of Id In Schedule Table
         public int? CriteriaId { get; set; } // Foreign Key Of Id In Criteria Table
-        public int? DoctorEvaluatorId { get; set; } // DoctorId // Foreign Key Of Id In Doctor Table
-        public int? AdminEvaluatorId { get; set; } // AdminId // Foreign Key Of Id In Admin Table
-        public string EvaluatorRole { get; set; } // "Admin", "Supervisor" or "Examiner"
+        public int? DoctorEvaluatorId { get; set; } // Foreign Key Of Id In Doctor Table
+        public int? AdminEvaluatorId { get; set; } // Foreign Key Of Id In Admin Table
         public int? StudentId { get; set; } // Foreign Key Of Id In Student Table
         public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
         public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
+        
+        public string EvaluatorRole { get; set; } // "Admin", "Supervisor" or "Examiner"
         public double Grade { get; set; }
-        public DateTime EvaluationDate { get; set; } = DateTime.Now;
+        public DateTime EvaluationDate { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? LastUpdatedAt { get; set; } = null;
 
 

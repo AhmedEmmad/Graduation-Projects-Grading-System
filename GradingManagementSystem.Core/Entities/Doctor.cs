@@ -6,9 +6,9 @@ namespace GradingManagementSystem.Core.Entities
     {
         public string FullName { get; set; }
         public string Email { get; set; }
-        public DateTime EnrollmentDate { get; set; } = DateTime.Now;
+        public DateTime EnrollmentDate { get; set; } = DateTime.Now.AddHours(1);
 
-        public string AppUserId { get; set; } // FK Of Id In AspNetUsers Table
+        public string AppUserId { get; set; } // Foreign Key Of Id In AspNetUsers Table
 
 
         #region Navigation Properties

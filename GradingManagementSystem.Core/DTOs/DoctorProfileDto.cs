@@ -10,7 +10,5 @@ namespace GradingManagementSystem.Core.DTOs
         public string? Role { get; set; }
         public string? ProfilePicture { get; set; }
         public DateTime EnrollmentDate { get; set; }
-        public string? CurrentAcademicYear { get; set; }
-        public string? CurrentAcademicTerm { get; set; }
     }
 }

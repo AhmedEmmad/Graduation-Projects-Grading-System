@@ -45,7 +45,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                             .FindAsync(a => a.Status == "Active");
+                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -90,18 +90,16 @@ namespace GradingManagementSystem.APIs.Controllers
             if (taskId <= 0 || studentId <= 0)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            //var task = await _unitOfWork.Repository<TaskItem>().FindAsync(t => t.Id == taskId);
             var task = await _dbContext.Tasks.Include(t => t.TaskMembers).FirstOrDefaultAsync(t => t.Id == taskId);
             if (task == null)
                 return NotFound(new ApiResponse(404, "Task not found.", new { IsSuccess = false }));
 
-            //var taskMemberEntity = await _unitOfWork.Repository<TaskMember>().FindAsync(tm => tm.Id == taskMember);
             var taskMemberEntity = task.TaskMembers.FirstOrDefault(tm => tm.StudentId == studentId);
             if (taskMemberEntity == null)
                 return NotFound(new ApiResponse(404, "Task member not found for this task.", new { IsSuccess = false }));
 
             taskMemberEntity.Status = StatusType.Completed.ToString();
-            taskMemberEntity.FinishedAt = DateTime.Now;
+            taskMemberEntity.FinishedAt = DateTime.Now.AddHours(1);
             _dbContext.TaskMembers.Update(taskMemberEntity);
             await _unitOfWork.CompleteAsync();
 

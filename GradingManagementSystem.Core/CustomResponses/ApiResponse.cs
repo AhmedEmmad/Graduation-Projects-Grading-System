@@ -9,6 +9,7 @@
         public ApiResponse()
         {
         }
+
         public ApiResponse(int statusCode, string? message = null, object? data = null)
         {
             StatusCode = statusCode;

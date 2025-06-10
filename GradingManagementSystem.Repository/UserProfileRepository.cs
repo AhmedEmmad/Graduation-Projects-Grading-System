@@ -1,4 +1,5 @@
-﻿using GradingManagementSystem.Core.DTOs;
+﻿using GradingManagementSystem.Core.CustomResponses;
+using GradingManagementSystem.Core.DTOs;
 using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Core.Repositories.Contact;
@@ -23,14 +24,6 @@ namespace GradingManagementSystem.Repository
             if (adminUser == null)
                 return null;
 
-            string currentTerm = string.Empty;
-            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
-                currentTerm = "First-Term";
-            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
-                currentTerm = "Second-Term";
-            else
-                currentTerm = "Invalid-Term";
-
             return new AdminProfileDto
             {
                 Id = adminUser.Admin.Id,
@@ -39,8 +32,6 @@ namespace GradingManagementSystem.Repository
                 EnrollmentDate = adminUser.Admin.EnrollmentDate,
                 Role = "Admin",
                 ProfilePicture = adminUser.ProfilePicture,
-                CurrentAcademicYear = currentAppointment?.Year,
-                CurrentAcademicTerm = currentTerm,
             };
         }
 
@@ -50,14 +41,6 @@ namespace GradingManagementSystem.Repository
             if (doctorUser == null)
                 return null;
 
-            string currentTerm = string.Empty;
-            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
-                currentTerm = "First-Term";
-            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
-                currentTerm = "Second-Term";
-            else
-                currentTerm = "Invalid-Term";
-
             return new DoctorProfileDto
             {
                 Id = doctorUser.Doctor.Id,
@@ -66,13 +49,18 @@ namespace GradingManagementSystem.Repository
                 Role = "Doctor",
                 EnrollmentDate = doctorUser.Doctor.EnrollmentDate,
                 ProfilePicture = doctorUser.ProfilePicture,
-                CurrentAcademicYear = currentAppointment?.Year,
-                CurrentAcademicTerm = currentTerm,
             };
         }
 
         public async Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime)
         {
+
+            if (currentAppointment == null)
+                return null;
+
+            if (currentAppointment.FirstTermStart > currentTime || currentAppointment.SecondTermEnd < currentTime)
+                return null;
+
             var studentUser = await _dbContext.Users
                 .Include(u => u.Student)
                 .ThenInclude(s => s.Team) // Ensure Team is included to avoid null reference

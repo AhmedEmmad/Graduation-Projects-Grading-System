@@ -17,7 +17,7 @@ namespace GradingManagementSystem.Repository
         public async Task<IEnumerable<TaskItem>> GetTeamTasksByTeamIdAsync(int teamId)
         {
             var academicAppointment = await _dbContext.AcademicAppointments
-                .Where(a => a.Status == "Active")
+                .Where(a => a.Status == StatusType.Active.ToString())
                 .FirstOrDefaultAsync();
             if (academicAppointment == null)
                 return Enumerable.Empty<TaskItem>();
@@ -36,7 +36,7 @@ namespace GradingManagementSystem.Repository
         public async Task<IEnumerable<TaskMember>> GetTaskMembersByTeamAsync(int teamId)
         {
             var academicAppointment = await _dbContext.AcademicAppointments
-                .Where(a => a.Status == "Active")
+                .Where(a => a.Status == StatusType.Active.ToString())
                 .FirstOrDefaultAsync();
             if (academicAppointment == null)
                 return Enumerable.Empty<TaskMember>();

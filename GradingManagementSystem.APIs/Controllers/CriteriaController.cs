@@ -43,7 +43,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (existingCriteria != null)
                 return BadRequest(CreateErrorResponse400BadRequest($"Criteria with the same name and evaluator already exists for this specialty: '{model.Specialty}' and given to '{model.GivenTo}'."));
 
-            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return BadRequest(CreateErrorResponse400BadRequest("You can't create a criteria in this time because no active academic appointment exists."));
 
@@ -210,7 +210,7 @@ namespace GradingManagementSystem.APIs.Controllers
             existingCriteria.GivenTo = model.GivenTo.Trim();
             existingCriteria.Specialty = model.Specialty.Trim();
             existingCriteria.Term = model.Term.Trim();
-            existingCriteria.LastUpdatedAt = DateTime.Now;
+            existingCriteria.LastUpdatedAt = DateTime.Now.AddHours(1);
             existingCriteria.Year = activeAppointment.Year;
             existingCriteria.AcademicAppointmentId = existingCriteria.AcademicAppointmentId;
 
@@ -237,6 +237,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             return Ok(new ApiResponse(200, $"Criteria deleted successfully.", new { IsSuccess = true }));
         }
+
 
         private static ApiResponse CreateErrorResponse400BadRequest(string message)
         {

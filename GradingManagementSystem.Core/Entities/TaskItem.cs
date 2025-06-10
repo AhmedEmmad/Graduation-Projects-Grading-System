@@ -5,7 +5,7 @@
         public string Name { get; set; }
         public string Description { get; set; }
         public DateTime Deadline { get; set; }
-        public DateTime StartTime { get; set; } = DateTime.Now;
+        public DateTime StartTime { get; set; } = DateTime.Now.AddHours(1);
         public string Status { get; set; } = StatusType.Pending.ToString();
 
         public int SupervisorId { get; set; } // FK Of Id In Doctor Table

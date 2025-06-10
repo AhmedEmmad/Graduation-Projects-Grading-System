@@ -8,7 +8,7 @@ namespace GradingManagementSystem.Core.Entities
         public string? Email { get; set; }
         public string? Specialty { get; set; }
         public bool InTeam { get; set; } = false;
-        public DateTime EnrollmentDate { get; set; } = DateTime.Now;
+        public DateTime EnrollmentDate { get; set; } = DateTime.Now.AddHours(1);
 
         public string? AppUserId { get; set; } // Foreign Key Of Id In AspNetUsers Table
         public int? TeamId { get; set; } = null; // Foreign Key Of Id In Team Table

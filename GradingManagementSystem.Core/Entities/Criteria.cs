@@ -9,12 +9,12 @@
         public string GivenTo { get; set; } // "Student" Or "Team"
         public string Specialty { get; set; }
         public string Year { get; set; }
-        public string Term { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string Term { get; set; } // Format: "First-Term"
+        public DateTime CreatedAt { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? LastUpdatedAt { get; set; } = null;
-        public bool IsActive { get; set; } = true; // property to soft delete/disable criteria
+        public bool IsActive { get; set; } = true;
 
-        public int AcademicAppointmentId { get; set; }
+        public int AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
 
         #region Navigation Properties

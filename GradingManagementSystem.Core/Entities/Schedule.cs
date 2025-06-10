@@ -3,11 +3,11 @@
     public class Schedule : BaseEntity
     {
         public DateTime ScheduleDate { get; set; }
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? LastUpdatedAt { get; set; } = null;
-        public bool IsActive { get; set; } = true; // property to soft delete/disable schedule
         public string Status { get; set; } = StatusType.Upcoming.ToString(); // "Upcoming", "Finished"
-        
+        public bool IsGraded { get; set; } = false;
+
         public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
         public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 

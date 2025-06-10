@@ -8,7 +8,7 @@
         public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
 
         public string? Status { get; set; } = StatusType.Pending.ToString();
-        public DateTime SentDate { get; set; } = DateTime.Now;
+        public DateTime SentDate { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? RespondedDate { get; set; } = null;
 
 

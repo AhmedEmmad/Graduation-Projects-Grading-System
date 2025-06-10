@@ -33,7 +33,7 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> GetAllTeams()
         {
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                             .FindAsync(a => a.Status == "Active");
+                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -73,19 +73,21 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
 
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                             .FindAsync(a => a.Status == "Active");
+                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
             var team = await _dbContext.Teams.Include(t => t.Students)
                                              .ThenInclude(s => s.AppUser)
-                                             .FirstOrDefaultAsync(T => T.Id == teamId && T.AcademicAppointmentId == activeAcademicAppointment.Id);
+                                             .FirstOrDefaultAsync(T => T.Id == teamId && 
+                                                                       T.AcademicAppointmentId == activeAcademicAppointment.Id);
 
             if (team == null)
                 return NotFound(CreateErrorResponse404NotFound("Team not found."));
 
             var teamMembers = await _dbContext.Students.Include(s => s.AppUser)
-                                                       .Where(s => s.TeamId == teamId && s.AcademicAppointmentId == activeAcademicAppointment.Id)
+                                                       .Where(s => s.TeamId == teamId &&
+                                                                   s.AcademicAppointmentId == activeAcademicAppointment.Id)
                                                        .ToListAsync();
 
             if (teamMembers == null || !teamMembers.Any())
@@ -144,7 +146,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of this team."));
 
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                            .FindAsync(a => a.Status == "Active");
+                                                            .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -169,7 +171,7 @@ namespace GradingManagementSystem.APIs.Controllers
                                                              .FindAllAsync(i => i.StudentId == student.Id);
             
             foreach (var ti in TeamInvitationsForStudent)
-                ti.Status = "Rejected";
+                ti.Status = StatusType.Rejected.ToString();
 
             await _unitOfWork.CompleteAsync();
             
@@ -234,7 +236,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest("Invitation already exists."));
 
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                            .FindAsync(a => a.Status == "Active");
+                                                            .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -266,7 +268,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
             var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                             .FindAsync(a => a.Status == "Active");
+                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAcademicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -316,7 +318,8 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             if (model.invitationId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("InvitationId is required."));
-            if (model.newStatus != "Accepted" && model.newStatus != "Rejected")
+
+            if (model.newStatus != StatusType.Accepted.ToString() && model.newStatus != StatusType.Rejected.ToString())
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid Status Value. Use 'Accepted' or 'Rejected'."));
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
@@ -343,7 +346,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             invitation.Status = (model.newStatus == StatusType.Accepted.ToString()) ? StatusType.Accepted.ToString()
                                                                                   : StatusType.Rejected.ToString();
-            invitation.RespondedDate = DateTime.Now;
+            invitation.RespondedDate = DateTime.Now.AddHours(1);
 
             if (model.newStatus == StatusType.Accepted.ToString())
             {
@@ -365,8 +368,8 @@ namespace GradingManagementSystem.APIs.Controllers
 
                 foreach (var otherInvitation in otherInvitations)
                 {
-                    otherInvitation.Status = "Rejected";
-                    otherInvitation.RespondedDate = DateTime.Now;
+                    otherInvitation.Status = StatusType.Rejected.ToString();
+                    otherInvitation.RespondedDate = DateTime.Now.AddHours(1);
                     _unitOfWork.Repository<Invitation>().Update(otherInvitation);
                 }
             }

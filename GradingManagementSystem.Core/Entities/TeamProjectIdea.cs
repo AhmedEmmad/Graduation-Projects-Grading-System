@@ -4,7 +4,7 @@
     {
         public string? Name { get; set; }
         public string? Description { get; set; }
-        public DateTime SubmissionDate { get; set; } = DateTime.Now;
+        public DateTime SubmissionDate { get; set; } = DateTime.Now.AddHours(1);
         public string? Status { get; set; } = StatusType.Pending.ToString();
 
         public int? TeamId { get; set; } // Foreign Key Of Id In Team Table

@@ -7,6 +7,8 @@
         Rejected,
         Upcoming,
         Finished,
-        Completed
+        Completed,
+        Active,
+        Inactive
     }
 }

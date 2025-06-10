@@ -76,7 +76,7 @@ namespace GradingManagementSystem.Service
                 SecondTermEnd = a.SecondTermEnd,
                 Status = a.Status
             })
-            .OrderByDescending(a => a.Id);
+            .OrderBy(a => a.Id);
 
             return new ApiResponse(200, "Academic appointments retrieved successfully.", new { IsSuccess = true, academicYearAppointments });
         }
@@ -92,16 +92,16 @@ namespace GradingManagementSystem.Service
 
             var academicYearAppointment = await _academicAppointmentRepository.GetByIdAsync(academicAppointment.Id);
 
-            if (academicYearAppointment.Status == "Active")
+            if (academicYearAppointment.Status == StatusType.Active.ToString())
                 return new ApiResponse(200, "Academic year is already active.", new { IsSuccess = true });
 
-            academicYearAppointment.Status = "Active";
-            academicYearAppointment.LastUpdatedAt = DateTime.Now;
+            academicYearAppointment.Status = StatusType.Active.ToString();
+            academicYearAppointment.LastUpdatedAt = DateTime.Now.AddHours(1);
             _academicAppointmentRepository.Update(academicYearAppointment);
             var remainingAcademicAppointments = await _academicAppointmentRepository.FindAllAsync(a => a.Id != model.AppointmentId);
             foreach (var appointment in remainingAcademicAppointments)
             {
-                appointment.Status = "Inactive";
+                appointment.Status = StatusType.Inactive.ToString();
                 _academicAppointmentRepository.Update(appointment);
             }
             await _unitOfWork.CompleteAsync();

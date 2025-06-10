@@ -7,7 +7,7 @@
         public int TeamId { get; set; } // FK Of Id In Team Table
 
         public string Status { get; set; } = StatusType.Pending.ToString();
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public DateTime CreatedAt { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? FinishedAt { get; set; }
 
 

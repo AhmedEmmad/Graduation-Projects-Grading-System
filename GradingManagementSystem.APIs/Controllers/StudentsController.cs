@@ -29,7 +29,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
 
             var academicAppointment = await _dbContext.AcademicAppointments
-                                                      .Where(a => a.Status == "Active")
+                                                      .Where(a => a.Status == StatusType.Active.ToString())
                                                       .FirstOrDefaultAsync();
             if (academicAppointment == null)
                 return NotFound(new ApiResponse(404, "Active academic appointment not found.", new { IsSuccess = false }));

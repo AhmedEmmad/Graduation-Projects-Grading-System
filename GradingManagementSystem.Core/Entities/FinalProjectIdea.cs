@@ -8,15 +8,14 @@ namespace GradingManagementSystem.Core.Entities
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
         public int ProjectId { get; set; }
-        
         public string? ProjectName { get; set; }
         public string? ProjectDescription { get; set; }
+
         public int? TeamRequestDoctorProjectIdeaId { get; set; } // Foreign Key Of Id In TeamRequestDoctorProjectIdea Table
         public int? TeamProjectIdeaId { get; set; } // Foreign Key Of Id In TeamProjectIdea Table
         public int? SupervisorId { get; set; } // Foreign Key Of Id In Doctor Table
         public int? TeamId { get; set; } // Foreign Key Of Id In Team Table
         public int? AcademicAppointmentId { get; set; } // Foreign Key Of Id In AcademicAppointment Table
-
 
         public string? PostedBy { get; set; }
 

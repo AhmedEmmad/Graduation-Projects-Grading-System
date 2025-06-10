@@ -7,8 +7,8 @@
         public DateTime FirstTermEnd { get; set; }
         public DateTime SecondTermStart { get; set; }
         public DateTime SecondTermEnd { get; set; }
-        public string Status { get; set; } = "Inactive"; // "Active" or "Inactive"
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+        public string Status { get; set; } = StatusType.Inactive.ToString(); // "Active" or "Inactive"
+        public DateTime CreatedAt { get; set; } = DateTime.Now.AddHours(1);
         public DateTime? LastUpdatedAt { get; set; } = null;
 
 

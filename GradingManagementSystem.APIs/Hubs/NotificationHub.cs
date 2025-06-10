@@ -1,6 +1,4 @@
 ﻿using GradingManagementSystem.Core.DTOs;
-using GradingManagementSystem.Core.Entities;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 
 namespace GradingManagementSystem.APIs.Hubs

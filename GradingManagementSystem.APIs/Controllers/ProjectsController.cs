@@ -18,7 +18,9 @@ namespace GradingManagementSystem.APIs.Controllers
         private readonly IProjectRepository _projectRepository;
         private readonly GradingManagementSystemDbContext _dbContext;
 
-        public ProjectsController(IUnitOfWork unitOfWork, IProjectRepository projectRepository, GradingManagementSystemDbContext dbContext)
+        public ProjectsController(IUnitOfWork unitOfWork,
+                                  IProjectRepository projectRepository,
+                                  GradingManagementSystemDbContext dbContext)
         {
             _unitOfWork = unitOfWork;
             _projectRepository = projectRepository;
@@ -45,7 +47,8 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctorIdeaExists != null)
                 return BadRequest(CreateErrorResponse400BadRequest("Project idea with this name already exists, Please enter other project name."));
 
-            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                                        .FindAsync(a => a.Status == StatusType.Active.ToString());
             if ( currentActiveAcademicYearAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -94,7 +97,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest("Project idea with this name already exists, Please enter other project idea name."));
 
             var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                                        .FindAsync(a => a.Status == "Active");
+                                                                        .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (currentActiveAcademicYearAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 
@@ -153,18 +156,18 @@ namespace GradingManagementSystem.APIs.Controllers
             if (admin == null)
                 return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
 
-            if (model.NewStatus != "Accepted" && model.NewStatus != "Rejected")
+            if (model.NewStatus != StatusType.Accepted.ToString() && model.NewStatus != StatusType.Rejected.ToString())
                 return BadRequest(new ApiResponse(400, "Invalid status value, Use 'Accepted' or 'Rejected'.", new { IsSuccess = false }));
             
             var doctorProjectIdea = await _unitOfWork.Repository<DoctorProjectIdea>().FindAsync(p => p.Id == model.ProjectId);
             if (doctorProjectIdea == null)
                 return NotFound(new ApiResponse(404, "Project not found.", new { IsSuccess = false }));
 
-            doctorProjectIdea.Status = model.NewStatus == "Accepted" ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
+            doctorProjectIdea.Status = model.NewStatus == StatusType.Accepted.ToString() ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
             _unitOfWork.Repository<DoctorProjectIdea>().Update(doctorProjectIdea);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Status Of Project id: '{doctorProjectIdea.Id}' updated to '{model.NewStatus.ToLower()}' successfully!", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, $"Status of this project updated to '{model.NewStatus.ToLower()}' successfully!", new { IsSuccess = true }));
         }
 
         // Finished / Reviewed / Tested / Edited
@@ -183,7 +186,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (admin == null)
                 return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
 
-            if (model.NewStatus != "Accepted" && model.NewStatus != "Rejected")
+            if (model.NewStatus != StatusType.Accepted.ToString() && model.NewStatus != StatusType.Rejected.ToString())
                 return BadRequest(new ApiResponse(400, "Invalid status value, Use 'Accepted' or 'Rejected'.", new { IsSuccess = false }));
 
             var teamProjectIdea = await _unitOfWork.Repository<TeamProjectIdea>().FindAsync(p => p.Id == model.ProjectId);
@@ -194,10 +197,10 @@ namespace GradingManagementSystem.APIs.Controllers
             if (team == null)
                 return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = true }));
 
-            teamProjectIdea.Status = model.NewStatus == "Accepted" ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
+            teamProjectIdea.Status = model.NewStatus == StatusType.Accepted.ToString() ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
             _unitOfWork.Repository<TeamProjectIdea>().Update(teamProjectIdea);
 
-            if (model.NewStatus == "Accepted")
+            if (model.NewStatus == StatusType.Accepted.ToString())
             {
                 team.HasProject = true;
                 team.SupervisorId = model.SupervisorId;
@@ -221,18 +224,23 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.CompleteAsync();
 
             var pendingTeamProjectIdeas = _dbContext.TeamProjectIdeas
-                                                    .Where(p => p.LeaderId == team.LeaderId && p.Status == "Pending" && p.TeamId == team.Id && p.Id != teamProjectIdea.Id)
+                                                    .Where(p => p.LeaderId == team.LeaderId &&
+                                                                p.Status == StatusType.Pending.ToString() &&
+                                                                p.TeamId == team.Id && 
+                                                                p.Id != teamProjectIdea.Id)
                                                     .ToList();
             foreach (var p in pendingTeamProjectIdeas)
-                p.Status = "Rejected";
+                p.Status = StatusType.Rejected.ToString();
 
             await _unitOfWork.CompleteAsync();
 
             var pendingTeamRequestsForDoctorProjectIdeas = await _dbContext.TeamsRequestDoctorProjectIdeas
-                                                                           .Where(tr => tr.TeamId == team.Id && tr.LeaderId == team.LeaderId && tr.Status == "Pending")
+                                                                           .Where(tr => tr.TeamId == team.Id &&
+                                                                                        tr.LeaderId == team.LeaderId &&
+                                                                                        tr.Status == StatusType.Pending.ToString())
                                                                            .ToListAsync();
             foreach (var tr in pendingTeamRequestsForDoctorProjectIdeas)
-                tr.Status = "Rejected";
+                tr.Status = StatusType.Rejected.ToString();
 
             await _unitOfWork.CompleteAsync();
 
@@ -300,7 +308,9 @@ namespace GradingManagementSystem.APIs.Controllers
             if (teamExists == null)
                 return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
 
-            var projectExists = await _unitOfWork.Repository<DoctorProjectIdea>().FindAsync(p => p.Id == model.ProjectId && p.Status == "Accepted");
+            var projectExists = await _unitOfWork.Repository<DoctorProjectIdea>()
+                                                 .FindAsync(p => p.Id == model.ProjectId &&
+                                                                 p.Status == StatusType.Accepted.ToString());
             if (projectExists is null)
                 return NotFound(new ApiResponse(404, "Project not found or not accepted.", new { IsSuccess = false }));
 
@@ -310,15 +320,17 @@ namespace GradingManagementSystem.APIs.Controllers
             if(leader.LeaderOfTeam?.HasProject == true)
                 return BadRequest(new ApiResponse(400, "Your team already has a project.", new { IsSuccess = false }));
 
-            var existingTeamRequest = await _dbContext.TeamsRequestDoctorProjectIdeas.FirstOrDefaultAsync(tr => tr.TeamId == teamExists.Id &&
-                                                             tr.DoctorProjectIdeaId == projectExists.Id &&
-                                                             tr.LeaderId == leader.Id &&
-                                                             tr.DoctorId == projectExists.DoctorId &&
-                                                             tr.Status == "Pending");
+            var existingTeamRequest = await _dbContext.TeamsRequestDoctorProjectIdeas
+                                                      .FirstOrDefaultAsync(tr => tr.TeamId == teamExists.Id &&
+                                                                                 tr.DoctorProjectIdeaId == projectExists.Id &&
+                                                                                 tr.LeaderId == leader.Id &&
+                                                                                 tr.DoctorId == projectExists.DoctorId &&
+                                                                                 tr.Status == StatusType.Pending.ToString());
             if (existingTeamRequest != null)
                 return BadRequest(new ApiResponse(400, "A request exists before that for this project idea.", new { IsSuccess = false }));
             
-            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                       .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (academicAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
@@ -364,10 +376,12 @@ namespace GradingManagementSystem.APIs.Controllers
             if (model == null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
-            if (model.NewStatus != "Accepted" && model.NewStatus != "Rejected")
+            if (model.NewStatus != StatusType.Accepted.ToString() && model.NewStatus != StatusType.Rejected.ToString())
                 return BadRequest(new ApiResponse(400, "Invalid Status Value. Use 'Accepted' or 'Rejected'.", new { IsSuccess = false }));
 
-            var projectRequest = await _dbContext.TeamsRequestDoctorProjectIdeas.Include(r => r.DoctorProjectIdea).FirstOrDefaultAsync(r => r.Id == model.RequestId);
+            var projectRequest = await _dbContext.TeamsRequestDoctorProjectIdeas
+                                                 .Include(r => r.DoctorProjectIdea)
+                                                 .FirstOrDefaultAsync(r => r.Id == model.RequestId);
             if (projectRequest == null)
                 return NotFound(new ApiResponse(404, "Request not found.", new { IsSuccess = false }));
 
@@ -375,7 +389,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (team == null)
                 return NotFound(new ApiResponse(404, "Team not found.", new { IsSuccess = false }));
 
-            if (team.HasProject && model.NewStatus == "Accepted")
+            if (team.HasProject && model.NewStatus == StatusType.Accepted.ToString())
                 return BadRequest(new ApiResponse(400, "This team already has a project.", new { IsSuccess = false }));
 
             var doctor = await _unitOfWork.Repository<Doctor>().FindAsync(d => d.Id == model.DoctorId && d.Id == projectRequest.DoctorId);
@@ -386,10 +400,10 @@ namespace GradingManagementSystem.APIs.Controllers
             if (leader == null)
                 return NotFound(new ApiResponse(404, "Leader not found.", new { IsSuccess = false }));
 
-            projectRequest.Status = model.NewStatus == "Accepted" ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
+            projectRequest.Status = model.NewStatus == StatusType.Accepted.ToString() ? StatusType.Accepted.ToString() : StatusType.Rejected.ToString();
             _unitOfWork.Repository<TeamRequestDoctorProjectIdea>().Update(projectRequest);
 
-            if (model.NewStatus == "Accepted")
+            if (model.NewStatus == StatusType.Accepted.ToString())
             {
                 team.HasProject = true;
                 team.SupervisorId = doctor.Id;
@@ -413,11 +427,14 @@ namespace GradingManagementSystem.APIs.Controllers
                 _unitOfWork.Repository<DoctorProjectIdea>().Update(projectRequest.DoctorProjectIdea);
 
                 var pendingRequests = await _unitOfWork.Repository<TeamRequestDoctorProjectIdea>()
-                    .FindAllAsync(r => r.LeaderId == leader.Id && r.Status == "Pending" && r.TeamId == team.Id && r.Id != projectRequest.Id);
+                    .FindAllAsync(r => r.LeaderId == leader.Id && 
+                                       r.Status == StatusType.Pending.ToString() &&
+                                       r.TeamId == team.Id && 
+                                       r.Id != projectRequest.Id);
 
                 foreach (var r in pendingRequests)
                 {
-                    r.Status = "Rejected";
+                    r.Status = StatusType.Rejected.ToString();
                     _unitOfWork.Repository<TeamRequestDoctorProjectIdea>().Update(r);
                 }
             }
@@ -447,7 +464,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (teamId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("TeamId must be positive number."));
 
-            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
             if (academicAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
 

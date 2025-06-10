@@ -60,7 +60,7 @@ namespace GradingManagementSystem.Service
                 await _dbContext.SaveChangesAsync();
 
                 string newOtp = OtpGenerator.GenerateOtp();
-                DateTime newExpiration = DateTime.Now.AddMinutes(5);
+                DateTime newExpiration = DateTime.Now.AddHours(1).AddMinutes(5);
                 var newOtpVerification = new UserOtp
                 {
                     Email = model.Email,
@@ -108,7 +108,7 @@ namespace GradingManagementSystem.Service
             await _dbContext.TemporaryUsers.AddAsync(newTemporaryUser);
 
             string newOtpCode = OtpGenerator.GenerateOtp();
-            DateTime newExpirationTime = DateTime.Now.AddMinutes(5);
+            DateTime newExpirationTime = DateTime.Now.AddHours(1).AddMinutes(5);
 
             var newOtpCodeVerification = new UserOtp
             {
@@ -135,17 +135,11 @@ namespace GradingManagementSystem.Service
             if (existingDoctor != null)
                 return new ApiResponse(400, $"This email \'{model.Email}\' is already taken or registered, Please register with another email", new { IsSuccess = false });
             
-            var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                .FindAsync(a => a.Status == "Active");
-            if (currentActiveAcademicYearAppointment == null)
-                return new ApiResponse(400, "No active academic year appointment found. Please wait until registration will open.", new { IsSuccess = false });
-
             var newDoctorAppUser = new AppUser
             {
                 FullName = model.FullName,
                 Email = model.Email,
                 UserName = model.Email.Split('@')[0],
-                //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
             };
 
             var createDoctorResult = await _userManager.CreateAsync(newDoctorAppUser, model.Password);
@@ -251,7 +245,7 @@ namespace GradingManagementSystem.Service
             await _unitOfWork.CompleteAsync();
 
             var currentActiveAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                .FindAsync(a => a.Status == "Active");
+                .FindAsync(a => a.Status == StatusType.Active.ToString());
             if (currentActiveAcademicYearAppointment == null)
                 return new ApiResponse(400, "No active academic year appointment found. Please wait until registration will open.", new { IsSuccess = false });
 
@@ -263,7 +257,6 @@ namespace GradingManagementSystem.Service
                 ProfilePicture = existingTemporaryUser.ProfilePicture,
                 EmailConfirmed = true,
                 Specialty = existingTemporaryUser?.Specialty?.ToUpper(),
-                //AcademicAppointmentId = currentActiveAcademicYearAppointment.Id,
             };
 
             var StudentCreatedResult = await _userManager.CreateAsync(newStudentAppUser, existingTemporaryUser.PasswordHash);
@@ -302,7 +295,7 @@ namespace GradingManagementSystem.Service
             await _dbContext.SaveChangesAsync();
 
             string newOtpCode = OtpGenerator.GenerateOtp();
-            DateTime newExpirationTime = DateTime.Now.AddMinutes(5);
+            DateTime newExpirationTime = DateTime.Now.AddHours(1).AddMinutes(5);
 
             var newOtpCodeVerification = new UserOtp
             {

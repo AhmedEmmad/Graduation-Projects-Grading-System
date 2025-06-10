@@ -67,7 +67,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
             }
 
-            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
             {
                 Console.WriteLine("No active academic appointment found.");
@@ -97,7 +97,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 Title = newNotification.Title,
                 Description = newNotification.Description,
                 Role = newNotification.Role,
-                IsRead = newNotification.IsRead,
+                IsReadFromAdmin = newNotification.IsReadFromAdmin,
+                IsReadFromDoctor = newNotification.IsReadFromDoctor,
+                IsReadFromStudent = newNotification.IsReadFromStudent,
                 SentAt = newNotification.SentAt
             };
 
@@ -153,7 +155,6 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Doctor notifications retrieved successfully.", new { IsSuccess = true, notifications }));
         }
 
-        // Finished / Reviewed / Tested / Edited
         [HttpPut("MarkAsRead")]
         [Authorize(Roles = "Admin, Doctor, Student")]
         public async Task<IActionResult> MarkAsRead([FromBody] UpdateNotificationDto model)
@@ -162,17 +163,40 @@ namespace GradingManagementSystem.APIs.Controllers
             if (notification == null)
                 return NotFound(new ApiResponse(404, "Notification not found.", new { IsSuccess = false }));
 
-            if (notification.IsRead)
-                return BadRequest(new ApiResponse(400, "Notification is already marked as read.", new { IsSuccess = false }));
+            // Determine user role
+            if (User.IsInRole("Admin"))
+            {
+                if (notification.IsReadFromAdmin)
+                    return BadRequest(new ApiResponse(400, "Notification is already marked as read for admin.", new { IsSuccess = false }));
 
-            notification.IsRead = true;
+                notification.IsReadFromAdmin = true;
+            }
+            else if (User.IsInRole("Doctor"))
+            {
+                if (notification.IsReadFromDoctor)
+                    return BadRequest(new ApiResponse(400, "Notification is already marked as read for doctor.", new { IsSuccess = false }));
+
+                notification.IsReadFromDoctor = true;
+            }
+            else if (User.IsInRole("Student"))
+            {
+                if (notification.IsReadFromStudent)
+                    return BadRequest(new ApiResponse(400, "Notification is already marked as read for student.", new { IsSuccess = false }));
+
+                notification.IsReadFromStudent = true;
+            }
+            else
+            {
+                return BadRequest(new ApiResponse(400, "Invalid user role.", new { IsSuccess = false }));
+            }
+
             _unitOfWork.Repository<Notification>().Update(notification);
             await _unitOfWork.CompleteAsync();
 
             return Ok(new ApiResponse(200, "Notification marked as read successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // InProgress
         [HttpDelete("Delete")]
         [Authorize(Roles = "Admin, Doctor, Student")]
         public async Task<IActionResult> DeleteNotification([FromBody] UpdateNotificationDto model)

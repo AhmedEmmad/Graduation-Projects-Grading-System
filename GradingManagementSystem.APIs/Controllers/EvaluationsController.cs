@@ -44,7 +44,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = doctor.Id;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
@@ -63,7 +63,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Where(t => t.SupervisorId == evaluatorId &&
                        t.HasProject &&
                        t.AcademicAppointmentId == activeAppointment.Id &&
-                       t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id) &&
+                       t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id) &&
                        t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
                 .AsNoTracking()
                 .ToListAsync();
@@ -168,7 +168,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = doctor.Id;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
@@ -191,7 +191,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     .ThenInclude(s => s.AppUser)
                 .Where(t => t.Schedules.Any(s => examinerScheduleIds.Contains(s.Id)) &&
                             t.AcademicAppointmentId == activeAppointment.Id &&
-                            t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
+                            t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -307,7 +307,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluatorId = admin.Id;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
@@ -325,7 +325,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     .ThenInclude(s => s.AppUser)
                 .Where(t => t.HasProject &&
                             t.AcademicAppointmentId == activeAppointment.Id &&
-                            t.Schedules.Any(s => s.IsActive && s.AcademicAppointmentId == activeAppointment.Id))
+                            t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id))
                 .AsNoTracking()
                 .ToListAsync();
 
@@ -422,7 +422,7 @@ namespace GradingManagementSystem.APIs.Controllers
             int evaluatorId = 0;
             string evaluatorRole = string.Empty;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
@@ -537,7 +537,7 @@ namespace GradingManagementSystem.APIs.Controllers
             int evaluatorId = 0;
             string evaluatorRole = string.Empty;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
 
@@ -661,7 +661,7 @@ namespace GradingManagementSystem.APIs.Controllers
             var studentId = student.Id;
             var teamId = student.TeamId;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
@@ -756,7 +756,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (appUserRole != "Admin" || appUserRole == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == "Active");
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found in this time.", new { IsSuccess = true }));
 
@@ -767,9 +767,8 @@ namespace GradingManagementSystem.APIs.Controllers
                                         .Include(t => t.Evaluations)
                                         .Where(t => t.Specialty == specialty &&
                                                     t.HasProject == true &&
-                                                    t.Schedules.Any(s => s.IsActive &&
-                                                                    s.AcademicAppointmentId == activeAppointment.Id &&
-                                                                    s.Status == "Finished"
+                                                    t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id &&
+                                                                         s.Status == "Finished"
                                                                    ) &&
                                                     t.AcademicAppointmentId == activeAppointment.Id
                                                )

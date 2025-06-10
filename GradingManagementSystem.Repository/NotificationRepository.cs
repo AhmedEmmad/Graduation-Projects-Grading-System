@@ -21,7 +21,7 @@ namespace GradingManagementSystem.Repository
                 return Enumerable.Empty<NotificationResponseDto>();
 
             var activeAppointment = await _dbContext.AcademicAppointments
-                .Where(a => a.Status == "Active")
+                .Where(a => a.Status == StatusType.Active.ToString())
                 .FirstOrDefaultAsync();
             if (activeAppointment == null)
                 return Enumerable.Empty<NotificationResponseDto>();
@@ -36,7 +36,9 @@ namespace GradingManagementSystem.Repository
                 Title = notification.Title,
                 Description = notification.Description,
                 Role = notification.Role,
-                IsRead = notification.IsRead,
+                IsReadFromAdmin = notification.IsReadFromAdmin,
+                IsReadFromDoctor = notification.IsReadFromDoctor,
+                IsReadFromStudent = notification.IsReadFromStudent,
                 SentAt = notification.SentAt,
                 AdminId = notification.AdminId
             });

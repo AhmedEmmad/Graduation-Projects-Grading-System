@@ -35,15 +35,9 @@ namespace GradingManagementSystem.Service
         {
             var currentTime = DateTime.Now;
             var activeAppointment = await _dbContext.AcademicAppointments
-                                                     .Where(a => a.Status == "Active")
+                                                     .Where(a => a.Status == StatusType.Active.ToString())
                                                      .FirstOrDefaultAsync();
 
-            if (activeAppointment == null)
-                return new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false });
-
-            if (activeAppointment.FirstTermStart > currentTime || activeAppointment.SecondTermEnd < currentTime)
-                return new ApiResponse(400, "Current time is not within the active academic appointment period.", new { IsSuccess = false });
-       
             object? userProfile = null;
             if (userRole == "Admin")
                 userProfile = await _userProfileRepository.GetAdminProfileAsync(userId, activeAppointment, currentTime);
@@ -112,13 +106,13 @@ namespace GradingManagementSystem.Service
             if (existingUser == null)
                 return new ApiResponse(404, "User not found.", new { IsSuccess = false });
 
+            if (oldPassword == newPassword)
+                return new ApiResponse(400, "New password is the same as the current one. Please choose another one.", new { IsSuccess = false });
+
             var passwordHasher = new PasswordHasher<AppUser>();
             var passwordVerification = passwordHasher.VerifyHashedPassword(existingUser, existingUser.PasswordHash, oldPassword);
             if (passwordVerification == PasswordVerificationResult.Failed)
                 return new ApiResponse(400, "Old password is incorrect.", new { IsSuccess = false });
-
-            if (oldPassword == newPassword)
-                return new ApiResponse(400, "New password is the same as the current one. Please choose another one.", new { IsSuccess = false });
 
             existingUser.PasswordHash = passwordHasher.HashPassword(existingUser, newPassword);
             _userProfileRepository.Update(existingUser);

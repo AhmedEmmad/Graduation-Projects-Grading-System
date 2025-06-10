@@ -35,7 +35,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctor == null)
                 return NotFound(CreateErrorResponse404NotFound("Doctor not found."));
 
-            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic year appointment found."));
 
@@ -117,7 +117,7 @@ namespace GradingManagementSystem.APIs.Controllers
             if (student == null)
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
-            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == "Active");
+            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(CreateErrorResponse404NotFound("No active academic year appointment found."));
 
@@ -184,7 +184,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 return BadRequest(CreateErrorResponse400BadRequest("Schedule Date must be in the future."));
 
             var activeAcademicAppointment = await _dbContext.AcademicAppointments
-                                                            .Where(a => a.Status == "Active")
+                                                            .Where(a => a.Status == StatusType.Active.ToString())
                                                             .FirstOrDefaultAsync();
 
             if (model.ScheduleDate < activeAcademicAppointment?.FirstTermStart &&

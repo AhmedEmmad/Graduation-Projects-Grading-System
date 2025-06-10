@@ -1,1 +1,1 @@
-# GradingManagementSystem.Solution
+# Graduation-Projects-Grading-System

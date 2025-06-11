@@ -5,6 +5,7 @@ namespace GradingManagementSystem.Core.Entities
     public class Student : BaseEntity
     {
         public string? FullName { get; set; }
+        //public string? ArabicFullName { get; set; }
         public string? Email { get; set; }
         public string? Specialty { get; set; }
         public bool InTeam { get; set; } = false;

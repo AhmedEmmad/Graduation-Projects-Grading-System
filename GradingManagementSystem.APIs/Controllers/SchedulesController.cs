@@ -58,42 +58,54 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctorSchedules == null || !doctorSchedules.Any())
                 return NotFound(CreateErrorResponse404NotFound("No schedules found for this doctor."));
 
+            var currentDateTime = DateTime.Now;
+
             var doctorScheduleDtos = doctorSchedules
                 .GroupBy(ds => ds.ScheduleId)
-                .Select(group => new DoctorScheduleDto
+                .Select(group =>
                 {
-                    ScheduleId = group.Key,
-                    ScheduleDate = group.First().Schedule.ScheduleDate,
-                    Status = group.First().Schedule.Status,
-                    TeamId = group.First().Schedule.TeamId,
-                    TeamName = group.First().Schedule.Team?.Name,
-                    TeamLeaderId = group.First().Schedule.Team?.LeaderId,
-                    TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName,
-                    Specialty = group.First().Schedule.Team?.Specialty,
-                    ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
-                    ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
-                    ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
-                    DoctorRole = group.Any(ds => ds.DoctorId == doctor.Id && ds.DoctorRole == "Supervisor") ? "Supervisor" : "Examiner",
-                    PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
-                    SupervisorId = group.First().Schedule.Team?.SupervisorId,
-                    SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
-                    TeamMembers = group.First().Schedule.Team?.Students?
-                        .Select(s => new TeamMemberDto
-                        {
-                            Id = s.Id,
-                            FullName = s.FullName,
-                            Email = s.Email,
-                            InTeam = s.InTeam,
-                            Specialty = s.Specialty,
-                            ProfilePicture = s.AppUser?.ProfilePicture
-                        }).ToList() ?? new List<TeamMemberDto>(),
-                    Examiners = doctorSchedules
-                        .Where(d => d.ScheduleId == group.Key && d.DoctorRole == "Examiner")
-                        .Select(d => new ExaminerDto
-                        {
-                            ExaminerId = d.DoctorId,
-                            ExaminerName = d.Doctor?.FullName
-                        }).ToList() ?? new List<ExaminerDto>()
+                    var scheduleDate = group.First().Schedule.ScheduleDate;
+                    string status;
+                    if (currentDateTime < scheduleDate)
+                        status = "Upcoming";
+                    else
+                        status = "Finished";
+
+                    return new DoctorScheduleDto
+                    {
+                        ScheduleId = group.Key,
+                        ScheduleDate = scheduleDate,
+                        Status = status,
+                        TeamId = group.First().Schedule.TeamId,
+                        TeamName = group.First().Schedule.Team?.Name,
+                        TeamLeaderId = group.First().Schedule.Team?.LeaderId,
+                        TeamLeaderName = group.First().Schedule.Team?.Leader?.FullName,
+                        Specialty = group.First().Schedule.Team?.Specialty,
+                        ProjectId = group.First().Schedule.Team?.FinalProjectIdea?.ProjectId,
+                        ProjectName = group.First().Schedule.Team?.FinalProjectIdea?.ProjectName,
+                        ProjectDescription = group.First().Schedule.Team?.FinalProjectIdea?.ProjectDescription,
+                        DoctorRole = group.Any(ds => ds.DoctorId == doctor.Id && ds.DoctorRole == "Supervisor") ? "Supervisor" : "Examiner",
+                        PostedBy = group.First().Schedule.Team?.FinalProjectIdea?.PostedBy,
+                        SupervisorId = group.First().Schedule.Team?.SupervisorId,
+                        SupervisorName = group.First().Schedule.Team?.Supervisor?.FullName,
+                        TeamMembers = group.First().Schedule.Team?.Students?
+                            .Select(s => new TeamMemberDto
+                            {
+                                Id = s.Id,
+                                FullName = s.FullName,
+                                Email = s.Email,
+                                InTeam = s.InTeam,
+                                Specialty = s.Specialty,
+                                ProfilePicture = s.AppUser?.ProfilePicture
+                            }).ToList() ?? new List<TeamMemberDto>(),
+                        Examiners = doctorSchedules
+                            .Where(d => d.ScheduleId == group.Key && d.DoctorRole == "Examiner")
+                            .Select(d => new ExaminerDto
+                            {
+                                ExaminerId = d.DoctorId,
+                                ExaminerName = d.Doctor?.FullName
+                            }).ToList() ?? new List<ExaminerDto>()
+                    };
                 })
                 .ToList();
 
@@ -140,32 +152,47 @@ namespace GradingManagementSystem.APIs.Controllers
             if (studentSchedules == null || !studentSchedules.Any())
                 return NotFound(CreateErrorResponse404NotFound("No schedules found for his student."));
 
-            var schedules = studentSchedules.Select(s => new StudentScheduleDto
-            {
-                ScheduleId = s.Id,
-                TeamId = s.TeamId,
-                TeamName = s.Team?.Name,
-                ProjectName = s.Team?.FinalProjectIdea?.ProjectName,
-                ProjectDescription = s.Team?.FinalProjectIdea?.ProjectDescription,
-                ScheduleDate = s.ScheduleDate,
-                Status = s.Status,
-                SupervisorId = s.Team?.SupervisorId,
-                SupervisorProfilePicture = s.Team?.Supervisor?.AppUser?.ProfilePicture,
-                SupervisorName = s.Team?.Supervisor?.FullName,
-                PostedBy = s.Team?.FinalProjectIdea?.PostedBy,
-                TeamMembers = s.Team?.Students?.Select(st => new TeamMemberDto
-                                                {
-                                                    Id = st.Id,
-                                                    FullName = st.FullName,
-                                                    Email = st.Email,
-                                                    InTeam = st.InTeam,
-                                                    Specialty = st.Specialty,
-                                                    ProfilePicture = st.AppUser?.ProfilePicture
-                                                }).ToList() ?? new List<TeamMemberDto>()
-            })
-            .ToList();
+            var currentDateTime = DateTime.Now;
 
-            return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = schedules }));
+            var studentScheduleDtos = studentSchedules
+                .GroupBy(s => s.Id)
+                .Select(group =>
+                {
+                    var schedule = group.First();
+                    var scheduleDate = schedule.ScheduleDate;
+                    string status;
+                    if (currentDateTime < scheduleDate)
+                        status = "Upcoming";
+                    else
+                        status = "Finished";
+
+                    return new StudentScheduleDto
+                    {
+                        ScheduleId = schedule.Id,
+                        TeamId = schedule.TeamId,
+                        TeamName = schedule.Team?.Name,
+                        ProjectName = schedule.Team?.FinalProjectIdea?.ProjectName,
+                        ProjectDescription = schedule.Team?.FinalProjectIdea?.ProjectDescription,
+                        ScheduleDate = scheduleDate,
+                        Status = status,
+                        SupervisorId = schedule.Team?.SupervisorId,
+                        SupervisorProfilePicture = schedule.Team?.Supervisor?.AppUser?.ProfilePicture,
+                        SupervisorName = schedule.Team?.Supervisor?.FullName,
+                        PostedBy = schedule.Team?.FinalProjectIdea?.PostedBy,
+                        TeamMembers = schedule.Team?.Students?.Select(st => new TeamMemberDto
+                        {
+                            Id = st.Id,
+                            FullName = st.FullName,
+                            Email = st.Email,
+                            InTeam = st.InTeam,
+                            Specialty = st.Specialty,
+                            ProfilePicture = st.AppUser?.ProfilePicture
+                        }).ToList() ?? new List<TeamMemberDto>()
+                    };
+                })
+                .ToList();
+
+            return Ok(new ApiResponse(200, "Student schedules retrieved successfully.", new { IsSuccess = true, Schedules = studentScheduleDtos }));
         }
 
         // Finished / Reviewed / Tested / Edited

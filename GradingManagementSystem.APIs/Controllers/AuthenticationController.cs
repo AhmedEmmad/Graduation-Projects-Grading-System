@@ -2,6 +2,7 @@
 using GradingManagementSystem.Core.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using IAuthenticationService = GradingManagementSystem.Core.Services.Contact.IAuthenticationService;
 
 namespace GradingManagementSystem.APIs.Controllers
@@ -18,7 +19,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _authService = authService;
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // Student Registration/Creation Flow/Logic
         [HttpPost("StudentRegister")]
         public async Task<IActionResult> StudentRegister([FromForm] StudentRegisterDto model)
@@ -38,7 +39,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // Doctor Registration Flow
         [HttpPost("DoctorRegister")]
         [Authorize(Roles = "Admin")]
@@ -59,7 +60,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // User Login Flow
         [HttpPost("Login")]
         public async Task<IActionResult> Login([FromBody] LoginDto model)
@@ -78,7 +79,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // User ForgetPassword Flow
         [HttpPost("ForgetPassword")]
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto model)
@@ -98,7 +99,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // User ResetPassword Flow
         [HttpPost("ResetPassword")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto model)
@@ -118,10 +119,10 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // Student Email Verification Flow
         [HttpPost("EmailVerificationByOtp/{otpCode}")]
-        public async Task<IActionResult> VerifyEmailByOTP(string otpCode)
+        public async Task<IActionResult> VerifyEmailByOTP([Required(ErrorMessage = "OTP Code is required")] string otpCode)
         {
             if (string.IsNullOrEmpty(otpCode))
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
@@ -138,7 +139,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         // Resend OTP Code Verification Flow
         [HttpPost("ResendOtp/{studentEmail}")]
         public async Task<IActionResult> ResendOtpCodeVerification(string studentEmail)

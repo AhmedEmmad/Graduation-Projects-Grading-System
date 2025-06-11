@@ -47,7 +47,7 @@ namespace GradingManagementSystem.APIs
             var app = builder.Build();
 
             #region Update Database Automatically
-            using var scope = app.Services.CreateScope();
+                using var scope = app.Services.CreateScope();
                 var services = scope.ServiceProvider;
                 // To Handle Errors In Console Screen In An Organized Manner => Ask CLR For Object Of Class That Implement ILoggerFactory Interface To Handle This
                 var loggerFactory = services.GetRequiredService<ILoggerFactory>();

@@ -196,7 +196,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 .ToListAsync();
 
             if (examinationTeams == null || !examinationTeams.Any())
-                return NotFound(new ApiResponse(404, "No teams found for Doctor evaluation as examiner.", new { IsSuccess = false }));            
+                return NotFound(new ApiResponse(404, "No teams found for Doctor evaluation as examiner.", new { IsSuccess = false }));
 
             var teamSpecialties = examinationTeams.Select(t => t.Specialty).Distinct().ToList();
             var activeCriterias = await _dbContext.Criterias
@@ -234,7 +234,7 @@ namespace GradingManagementSystem.APIs.Controllers
                     {
                         TeamId = t.Id,
                         TeamName = t.Name,
-                        ProjectId = t.FinalProjectIdea != null  ? t.FinalProjectIdea.ProjectId : 0,
+                        ProjectId = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectId : 0,
                         ProjectName = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectName : "N/A",
                         ProjectDescription = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectDescription : "N/A",
                         ScheduleId = t.Schedules.FirstOrDefault()?.Id ?? null,
@@ -271,18 +271,6 @@ namespace GradingManagementSystem.APIs.Controllers
                             : new List<TeamMemberDto>()
                     }).ToList()
             }).ToList();
-
-            //// Update the status of schedules to "Finished"  
-            //var schedulesToUpdate = await _dbContext.Schedules
-            //    .Where(s => examinerScheduleIds.Contains(s.Id) && s.Status != "Finished")
-            //    .ToListAsync();
-
-            //foreach (var schedule in schedulesToUpdate)
-            //{
-            //    schedule.Status = "Finished";
-            //}
-
-            //await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Examination teams retrieved successfully.", new { IsSuccess = true, examinerTeamsWithCriteriaBySpecialtyGroup }));
         }
@@ -375,7 +363,7 @@ namespace GradingManagementSystem.APIs.Controllers
                             ScheduleId = t.Schedules.FirstOrDefault()?.Id ?? null,
                             ScheduleDate = t.Schedules.FirstOrDefault()?.ScheduleDate ?? null,
                             ScheduleStatus = t.Schedules.FirstOrDefault()?.Status ?? null,
-                            TeamMembers = t.Students != null?
+                            TeamMembers = t.Students != null ?
                                                 t.Students
                                                 .Where(s => s.AppUser != null) // Filter out students with null AppUser
                                                 .Select(s => new TeamMemberDto
@@ -390,18 +378,6 @@ namespace GradingManagementSystem.APIs.Controllers
                                             : new List<TeamMemberDto>()
                         }).ToList()
             }).ToList();
-
-            //// Update the status of schedules to "Finished"  
-            //var schedulesToUpdate = await _dbContext.Schedules
-            //    .Where(s => s.Status != "Finished")
-            //    .ToListAsync();
-
-            //foreach (var schedule in schedulesToUpdate)
-            //{
-            //    schedule.Status = "Finished";
-            //}
-
-            //await _dbContext.SaveChangesAsync();
 
             return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
@@ -607,7 +583,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
                     if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
                         return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
-                    
+
                     var newEvaluation = new Evaluation
                     {
                         ScheduleId = model.ScheduleId,
@@ -627,15 +603,61 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _dbContext.SaveChangesAsync();
 
-            var committeeDoctorSchedule = await _dbContext.CommitteeDoctorSchedules.FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId);
-
-            if (committeeDoctorSchedule != null)
+            // Update HasCompletedEvaluation to true (1) for the examiner or supervisor
+            if (appUserRole == "Doctor")
             {
-                committeeDoctorSchedule.HasCompletedEvaluation = true;
-                _dbContext.CommitteeDoctorSchedules.Update(committeeDoctorSchedule);
+                var committeeDoctorSchedule = await _dbContext.CommitteeDoctorSchedules
+                    .FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId);
+
+                if (committeeDoctorSchedule != null)
+                {
+                    committeeDoctorSchedule.HasCompletedEvaluation = true;
+                    _dbContext.CommitteeDoctorSchedules.Update(committeeDoctorSchedule);
+                    await _dbContext.SaveChangesAsync();
+                }
             }
 
-            await _dbContext.SaveChangesAsync();
+            // Check if all examiners and supervisor for the schedule have completed their evaluation
+            if (model.ScheduleId.HasValue && model.TeamId.HasValue)
+            {
+                var schedule = await _dbContext.Schedules
+                    .Include(s => s.CommitteeDoctorSchedules)
+                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId.Value);
+
+                if (schedule != null)
+                {
+                    // Get all examiners and supervisor for this schedule
+                    var examinerIds = schedule.CommitteeDoctorSchedules
+                        .Where(cds => cds.DoctorRole == "Examiner")
+                        .Select(cds => cds.DoctorId)
+                        .ToList();
+
+                    var supervisorId = schedule.CommitteeDoctorSchedules
+                        .Where(cds => cds.DoctorRole == "Supervisor")
+                        .Select(cds => cds.DoctorId)
+                        .FirstOrDefault();
+
+                    // Check if all examiners have completed evaluation
+                    var allExaminersCompleted = !examinerIds.Any() ||
+                        await _dbContext.CommitteeDoctorSchedules
+                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner")
+                            .AllAsync(cds => cds.HasCompletedEvaluation);
+
+                    // Check if supervisor has completed evaluation
+                    var supervisorCompleted = supervisorId == 0 ||
+                        await _dbContext.CommitteeDoctorSchedules
+                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Supervisor")
+                            .AllAsync(cds => cds.HasCompletedEvaluation);
+
+                    // If all examiners and supervisor have completed, set IsGraded = true
+                    if (allExaminersCompleted && supervisorCompleted)
+                    {
+                        schedule.IsGraded = true;
+                        _dbContext.Schedules.Update(schedule);
+                        await _dbContext.SaveChangesAsync();
+                    }
+                }
+            }
 
             return Ok(new ApiResponse(200, "Grades submitted successfully.", new { IsSuccess = true }));
         }
@@ -972,6 +994,121 @@ namespace GradingManagementSystem.APIs.Controllers
 
                 return Ok(new ApiResponse(200, "Grades exported successfully.", new { IsSuccess = true, excelSheet = response }));
             }
+        }
+
+        [HttpGet("AllTeamsWithoutEvaluationBySpecialty/{doctorId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetAllTeamsWithoutEvaluationBySpecialtyForThisDoctor(int doctorId)
+        {
+            var activeAppointment = await _dbContext.AcademicAppointments
+                .FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
+            if (activeAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
+
+            var pendingDoctorSchedules = await _dbContext.CommitteeDoctorSchedules
+                .Include(cds => cds.Schedule)
+                    .ThenInclude(s => s.Team)
+                        .ThenInclude(t => t.Students)
+                            .ThenInclude(st => st.AppUser)
+                .Include(cds => cds.Schedule)
+                    .ThenInclude(s => s.Team)
+                        .ThenInclude(t => t.FinalProjectIdea)
+                .Where(cds => cds.DoctorId == doctorId
+                    && cds.Schedule.AcademicAppointmentId == activeAppointment.Id
+                    && cds.HasCompletedEvaluation == false
+                    && cds.Schedule.IsGraded == false)
+                .ToListAsync();
+
+            if (!pendingDoctorSchedules.Any())
+                return Ok(new ApiResponse(200, "No teams found without evaluation for this doctor.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup = new List<object>() }));
+
+            var schedules = pendingDoctorSchedules
+                .Select(cds => cds.Schedule)
+                .Where(s => s.Team != null)
+                .ToList();
+
+            var teams = schedules
+                .Select(s => s.Team)
+                .Where(t => t != null)
+                .Distinct()
+                .ToList();
+
+            var teamSpecialties = teams.Select(t => t.Specialty).Distinct().ToList();
+
+            var activeCriterias = await _dbContext.Criterias
+                .Where(c => c.IsActive &&
+                            teamSpecialties.Contains(c.Specialty) &&
+                            c.AcademicAppointmentId == activeAppointment.Id)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var teamsWithCriteriaBySpecialtyGroup = teamSpecialties.Select(specialty => new TeamsWithCriteriaBySpecialtyGroupDto
+            {
+                Specialty = specialty,
+                Criterias = activeCriterias
+                    .Where(c => c.Specialty == specialty && c.IsActive)
+                    .Select(c => new CriteriaDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        MaxGrade = c.MaxGrade,
+                        Evaluator = c.Evaluator,
+                        GivenTo = c.GivenTo,
+                        Specialty = c.Specialty,
+                        Year = c.Year,
+                        Term = c.Term,
+                        CreatedAt = c.CreatedAt,
+                    }).ToList(),
+                Teams = teams
+                    .Where(t => t.Specialty == specialty)
+                    .Select(t =>
+                    {
+                        var schedule = schedules.FirstOrDefault(s => s.Team.Id == t.Id);
+                        return new TeamWithCriteriaDto
+                        {
+                            TeamId = t.Id,
+                            TeamName = t.Name,
+                            ProjectId = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectId : 0,
+                            ProjectName = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectName : "N/A",
+                            ProjectDescription = t.FinalProjectIdea != null ? t.FinalProjectIdea.ProjectDescription : "N/A",
+                            ScheduleId = schedule?.Id ?? null,
+                            ScheduleDate = schedule?.ScheduleDate ?? null,
+                            ScheduleStatus = schedule?.Status ?? null,
+                            Specialty = t.Specialty,
+                            Criterias = activeCriterias
+                                .Where(c => c.Specialty == specialty && c.IsActive)
+                                .Select(c => new CriteriaDto
+                                {
+                                    Id = c.Id,
+                                    Name = c.Name,
+                                    Description = c.Description,
+                                    MaxGrade = c.MaxGrade,
+                                    Evaluator = c.Evaluator,
+                                    GivenTo = c.GivenTo,
+                                    Specialty = c.Specialty,
+                                    Year = c.Year,
+                                    Term = c.Term,
+                                    CreatedAt = c.CreatedAt,
+                                }).ToList(),
+                            TeamMembers = t.Students != null
+                                ? t.Students
+                                    .Where(s => s.AppUser != null)
+                                    .Select(s => new TeamMemberDto
+                                    {
+                                        Id = s.Id,
+                                        FullName = s.FullName,
+                                        Email = s.AppUser.Email ?? "N/A",
+                                        Specialty = s.Specialty,
+                                        InTeam = s.InTeam,
+                                        ProfilePicture = s.AppUser.ProfilePicture ?? "N/A"
+                                    }).ToList()
+                                : new List<TeamMemberDto>()
+                        };
+                    }).ToList()
+            }).ToList();
+
+            return Ok(new ApiResponse(200, "Teams without evaluation for this doctor retrieved successfully.", new { IsSuccess = true, teamsWithCriteriaBySpecialtyGroup }));
         }
     }
 }

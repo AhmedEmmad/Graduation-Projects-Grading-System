@@ -29,29 +29,29 @@ namespace GradingManagementSystem.APIs.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorSupervisionEvaluation()
         {
-            var appUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            var doctorAppUserId = User.FindFirst("UserId")?.Value;
+            var doctorAppUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
 
-            if (appUserId == null || appUserRole == null)
+            if (doctorAppUserId == null || doctorAppUserRole == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
-            if (appUserRole != "Doctor")
+            if (doctorAppUserRole != "Doctor")
                 return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
 
-            var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
+            var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == doctorAppUserId);
             if (doctor == null)
                 return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
 
             var evaluatorId = doctor.Id;
 
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAppointment == null)
+            var activeAcademicYearAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
+            if (activeAcademicYearAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = true }));
 
             var supervisorScheduleIds = await _dbContext.CommitteeDoctorSchedules
                                                         .Where(cds => cds.DoctorId == evaluatorId &&
                                                                       cds.DoctorRole == "Supervisor" &&
-                                                                      cds.Schedule.AcademicAppointmentId == activeAppointment.Id)
+                                                                      cds.Schedule.AcademicAppointmentId == activeAcademicYearAppointment.Id)
                                                         .Select(cds => cds.ScheduleId)
                                                         .ToListAsync();
 
@@ -62,8 +62,8 @@ namespace GradingManagementSystem.APIs.Controllers
                     .ThenInclude(s => s.AppUser)
                 .Where(t => t.SupervisorId == evaluatorId &&
                        t.HasProject &&
-                       t.AcademicAppointmentId == activeAppointment.Id &&
-                       t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id) &&
+                       t.AcademicAppointmentId == activeAcademicYearAppointment.Id &&
+                       t.Schedules.Any(s => s.AcademicAppointmentId == activeAcademicYearAppointment.Id) &&
                        t.Schedules.Any(s => supervisorScheduleIds.Contains(s.Id)))
                 .AsNoTracking()
                 .ToListAsync();
@@ -76,7 +76,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Where(c => c.IsActive &&
                             c.Evaluator == "Supervisor" &&
                             teamSpecialties.Contains(c.Specialty) &&
-                            c.AcademicAppointmentId == activeAppointment.Id)
+                            c.AcademicAppointmentId == activeAcademicYearAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 

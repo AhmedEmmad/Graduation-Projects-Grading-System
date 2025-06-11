@@ -122,7 +122,7 @@ namespace GradingManagementSystem.APIs.Controllers
         // Finished / Reviewed / Tested / Edited / D
         // Student Email Verification Flow
         [HttpPost("EmailVerificationByOtp/{otpCode}")]
-        public async Task<IActionResult> VerifyEmailByOTP([Required(ErrorMessage = "OTP Code is required")] string otpCode)
+        public async Task<IActionResult> VerifyEmailByOTP(string otpCode)
         {
             if (string.IsNullOrEmpty(otpCode))
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));

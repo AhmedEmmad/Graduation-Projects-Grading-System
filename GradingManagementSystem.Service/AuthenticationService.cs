@@ -5,6 +5,7 @@ using GradingManagementSystem.Core.Entities;
 using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Core.Services.Contact;
 using GradingManagementSystem.Repository.Data.DbContexts;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -22,6 +23,7 @@ namespace GradingManagementSystem.Service
         private readonly SignInManager<AppUser> _signInManager;
         private readonly ITokenService _tokenService;
         private readonly GradingManagementSystemDbContext _dbContext;
+        private readonly IWebHostEnvironment _env;
 
         public AuthenticationService(IUnitOfWork unitOfWork, 
                                      UserManager<AppUser> userManager, 
@@ -29,7 +31,8 @@ namespace GradingManagementSystem.Service
                                      IEmailService emailService,
                                      SignInManager<AppUser> signInManager,
                                      ITokenService tokenService,
-                                     GradingManagementSystemDbContext dbContext)
+                                     GradingManagementSystemDbContext dbContext,
+                                     IWebHostEnvironment env)
         {
             _unitOfWork = unitOfWork;
             _userManager = userManager;
@@ -38,6 +41,7 @@ namespace GradingManagementSystem.Service
             _signInManager = signInManager;
             _tokenService = tokenService;
             _dbContext = dbContext;
+            _env = env;
         }
 
         // Finished / Reviewed / Tested / Edited / E
@@ -83,7 +87,7 @@ namespace GradingManagementSystem.Service
             string profilePicturePath = "";
             if (model.ProfilePicture != null)
             {
-                var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students/ProfilePictures");
+                var uploadsFolder = Path.Combine(_env.WebRootPath, "Students/ProfilePictures");
                 Directory.CreateDirectory(uploadsFolder);
 
                 var uniqueFileName = $"{Guid.NewGuid()}_{model.ProfilePicture.FileName}";

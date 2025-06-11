@@ -22,47 +22,56 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
         
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPost("Create")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateNewCriteria([FromBody] CreateCriteriaDto model)
         {
-            if (model == null)
+            if (model is null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
 
+            if (model.MaxGrade <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("Maximum grade must be greater than zero."));
+            if (model.Evaluator != "Examiner" && model.Evaluator != "Supervisor" && model.Evaluator != "Admin")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid evaluator. Must be 'Examiner', 'Supervisor', or 'Admin'."));
+            if (model.GivenTo != "Student" && model.GivenTo != "Team")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid given to. Must be 'Student' or 'Team'."));
+            if (model.Specialty != "CS" && model.Specialty != "CS & STAT" && model.Specialty != "CS & MATH" && model.Specialty != "CS & PHYS")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid specialty. Must be 'CS', 'CS & STAT', 'CS & MATH', or 'CS & PHYS'."));
             var validTerms = new[] { "First-Term", "Second-Term" };
             if (!validTerms.Contains(model.Term))
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid term. Must be 'First-Term' or 'Second-Term'."));
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>()
                                                     .FindAsync(c => c.Name == model.Name.Trim() &&
+                                                               c.MaxGrade == model.MaxGrade &&
                                                                c.Evaluator == model.Evaluator.Trim() &&
                                                                c.Specialty == model.Specialty.Trim() &&
                                                                c.GivenTo == model.GivenTo.Trim() &&
+                                                               c.Term == model.Term.Trim() &&
                                                                c.IsActive);
             if (existingCriteria != null)
                 return BadRequest(CreateErrorResponse400BadRequest($"Criteria with the same name and evaluator already exists for this specialty: '{model.Specialty}' and given to '{model.GivenTo}'."));
 
-            var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAppointment == null)
+            var activeAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
+            if (activeAcademicYearAppointment == null)
                 return BadRequest(CreateErrorResponse400BadRequest("You can't create a criteria in this time because no active academic appointment exists."));
 
             var currentDateTime = DateTime.Now;
-            
             if(model.Term == "First-Term")
             {
-                if (!(currentDateTime.Date >= activeAppointment.FirstTermStart.Date && currentDateTime.Date <= activeAppointment.FirstTermEnd.Date))
+                if (!(currentDateTime.Date >= activeAcademicYearAppointment.FirstTermStart.Date && currentDateTime.Date <= activeAcademicYearAppointment.FirstTermEnd.Date))
                 {
                     return BadRequest(CreateErrorResponse400BadRequest($"You cannot create criteria outside of First-Term dates " +
-                                     $"({activeAppointment.FirstTermStart.Date} to {activeAppointment.FirstTermEnd.Date})"));
+                                     $"({activeAcademicYearAppointment.FirstTermStart.Date} to {activeAcademicYearAppointment.FirstTermEnd.Date})"));
                 }         
             }
             else if (model.Term == "Second-Term")
             {
-                if (!(currentDateTime.Date >= activeAppointment.SecondTermStart.Date && currentDateTime.Date <= activeAppointment.SecondTermEnd.Date))
+                if (!(currentDateTime.Date >= activeAcademicYearAppointment.SecondTermStart.Date && currentDateTime.Date <= activeAcademicYearAppointment.SecondTermEnd.Date))
                 {
                     return BadRequest(CreateErrorResponse400BadRequest($"You cannot create criteria outside of Second-Term dates " +
-                                     $"({activeAppointment.SecondTermStart.Date} to {activeAppointment.SecondTermEnd.Date})"));
+                                     $"({activeAcademicYearAppointment.SecondTermStart.Date} to {activeAcademicYearAppointment.SecondTermEnd.Date})"));
                 }
             }
 
@@ -74,9 +83,9 @@ namespace GradingManagementSystem.APIs.Controllers
                 Evaluator = model.Evaluator.Trim(),
                 GivenTo = model.GivenTo.Trim(),
                 Specialty = model.Specialty.Trim(),
-                Year = activeAppointment.Year,
+                Year = activeAcademicYearAppointment.Year,
                 Term = model.Term,
-                AcademicAppointmentId = activeAppointment.Id,
+                AcademicAppointmentId = activeAcademicYearAppointment.Id,
             };
 
             await _unitOfWork.Repository<Criteria>().AddAsync(newCriteria);
@@ -85,12 +94,16 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, $"Criteria '{newCriteria.Name}' created successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("All")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllCriteriaList()
         {
-            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true);
+            var activeAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
+            if (activeAcademicYearAppointment == null)
+                return BadRequest(CreateErrorResponse400BadRequest("No active academic appointment found."));
+
+            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true && c.AcademicAppointmentId == activeAcademicYearAppointment.Id);
             if (existingCriteriaList == null || !existingCriteriaList.Any())
                 return NotFound(CreateErrorResponse404NotFound("No criteria list found."));
 
@@ -115,7 +128,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true, criteriaList }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("AllForStudent")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllCriteriaListForStudentBasedOnYourSpecialty()
@@ -127,8 +140,14 @@ namespace GradingManagementSystem.APIs.Controllers
             var student = await _unitOfWork.Repository<Student>().FindAsync(s => s.AppUserId == studentAppUserId);
             if (student == null)
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
-            
-            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true && c.Specialty == student.Specialty);
+
+            var activeAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Status == StatusType.Active.ToString());
+            if (activeAcademicYearAppointment == null)
+                return BadRequest(CreateErrorResponse400BadRequest("No active academic appointment found."));
+
+            var existingCriteriaList = await _unitOfWork.Repository<Criteria>().FindAllAsync(c => c.IsActive == true && 
+                                                                                                  c.Specialty == student.Specialty &&
+                                                                                                  c.AcademicAppointmentId == activeAcademicYearAppointment.Id);
             if (existingCriteriaList == null || !existingCriteriaList.Any())
                 return NotFound(CreateErrorResponse404NotFound("No criteria list Found."));
 
@@ -153,7 +172,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria list retrieved successfully.", new { IsSuccess = true , criteriaList }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("{criteriaId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetCriteriaById(int criteriaId)
@@ -163,7 +182,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>().FindAsync(c => c.Id == criteriaId);
             if (existingCriteria == null)
-                return NotFound(CreateErrorResponse404NotFound($"Criteria with ID '{criteriaId}' not found."));
+                return NotFound(CreateErrorResponse404NotFound($"Criteria not found."));
 
             var criteria = new CriteriaObjectDto
             {
@@ -183,25 +202,33 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Criteria retrieved successfully.", new { IsSuccess = true , criteria }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("Update")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateExistingCriteria([FromBody] UpdateCriteriaDto model)
         {
-            if (model == null)
+            if (model is null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
+
+            if (model.MaxGrade <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("Maximum grade must be greater than zero."));
+            if (model.Evaluator != "Examiner" && model.Evaluator != "Supervisor" && model.Evaluator != "Admin")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid evaluator. Must be 'Examiner', 'Supervisor', or 'Admin'."));
+            if (model.GivenTo != "Student" && model.GivenTo != "Team")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid given to. Must be 'Student' or 'Team'."));
+            if (model.Specialty != "CS" && model.Specialty != "CS & STAT" && model.Specialty != "CS & MATH" && model.Specialty != "CS & PHYS")
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid specialty. Must be 'CS', 'CS & STAT', 'CS & MATH', or 'CS & PHYS'."));
+            var validTerms = new[] { "First-Term", "Second-Term" };
+            if (!validTerms.Contains(model.Term))
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid term. Must be 'First-Term' or 'Second-Term'."));
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>().FindAsync(c => c.Id == model.Id);
             if (existingCriteria == null)
-                return NotFound(CreateErrorResponse404NotFound($"Criteria with ID '{model.Id}' not found."));
+                return NotFound(CreateErrorResponse404NotFound($"Criteria not found."));
 
             var activeAppointment = await _unitOfWork.Repository<AcademicAppointment>().FindAsync(a => a.Id == existingCriteria.AcademicAppointmentId);
             if (activeAppointment == null)
                 return BadRequest(CreateErrorResponse400BadRequest("Associated academic appointment not found."));
-
-            var validTerms = new[] { "First-Term", "Second-Term" };
-            if (!validTerms.Contains(model.Term))
-                return BadRequest(CreateErrorResponse400BadRequest("Invalid term. Must be 'First-Term' or 'Second-Term'."));
 
             existingCriteria.Name = model.Name.Trim();
             existingCriteria.Description = model.Description.Trim();
@@ -217,10 +244,10 @@ namespace GradingManagementSystem.APIs.Controllers
             _unitOfWork.Repository<Criteria>().Update(existingCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria updated successfully.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, "Criteria updated successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpDelete("Delete/{criteriaId}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteExistingCriteria(int criteriaId)
@@ -230,12 +257,12 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var existingCriteria = await _unitOfWork.Repository<Criteria>().FindAsync(c => c.Id == criteriaId);
             if (existingCriteria == null)
-                return NotFound(CreateErrorResponse404NotFound($"Criteria with ID {criteriaId} not found."));
+                return NotFound(CreateErrorResponse404NotFound($"Criteria not found."));
 
             _unitOfWork.Repository<Criteria>().Delete(existingCriteria);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Criteria deleted successfully.", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, "Criteria deleted successfully.", new { IsSuccess = true }));
         }
 
 

@@ -1,14 +1,15 @@
-﻿using GradingManagementSystem.Core.CustomResponses;
-using GradingManagementSystem.Core.Entities.Identity;
+﻿using GradingManagementSystem.Core;
+using GradingManagementSystem.Core.CustomResponses;
 using GradingManagementSystem.Core.Entities;
+using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Core.Repositories.Contact;
 using GradingManagementSystem.Core.Services.Contact;
-using GradingManagementSystem.Core;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
-using Microsoft.EntityFrameworkCore;
 using GradingManagementSystem.Repository.Data.DbContexts;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace GradingManagementSystem.Service
 {
@@ -18,17 +19,20 @@ namespace GradingManagementSystem.Service
         private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _configuration;
         private readonly GradingManagementSystemDbContext _dbContext;
+        private readonly IWebHostEnvironment _env;
 
         public UserProfileService(IUserProfileRepository userProfileRepository,
                                   IUnitOfWork unitOfWork,
                                   IConfiguration configuration,
-                                  GradingManagementSystemDbContext dbContext)
+                                  GradingManagementSystemDbContext dbContext,
+                                  IWebHostEnvironment env)
 
         {
             _userProfileRepository = userProfileRepository;
             _unitOfWork = unitOfWork;
             _configuration = configuration;
             _dbContext = dbContext;
+            _env = env;
         }
 
         public async Task<ApiResponse> GetUserProfileAsync(string userId, string userRole)
@@ -130,11 +134,11 @@ namespace GradingManagementSystem.Service
             var profilePicturePath = string.Empty;
             var uploadsFolder = string.Empty;
             if (userRole == "Admin")
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Admins/ProfilePictures");
+                uploadsFolder = Path.Combine(_env.WebRootPath, "Admins/ProfilePictures");
             else if (userRole == "Doctor")
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Doctors/ProfilePictures");
+                uploadsFolder = Path.Combine(_env.WebRootPath, "Doctors/ProfilePictures");
             else
-                uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot/Students/ProfilePictures");
+                uploadsFolder = Path.Combine(_env.WebRootPath, "Students/ProfilePictures");
 
             Directory.CreateDirectory(uploadsFolder);
 

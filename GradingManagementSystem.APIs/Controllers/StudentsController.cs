@@ -19,35 +19,35 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("StudentsWithoutTeams")]
-        [Authorize(Roles = "Admin, Student, Doctor")]
+        [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetAllStudentsWithoutTeams()
         {
             var userId = User.FindFirst("UserId")?.Value;
-            if (string.IsNullOrEmpty(userId))
+            if (string.IsNullOrEmpty(userId) || userId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
 
-            var academicAppointment = await _dbContext.AcademicAppointments
+            var activeAcademicYearAppointment = await _dbContext.AcademicAppointments
                                                       .Where(a => a.Status == StatusType.Active.ToString())
                                                       .FirstOrDefaultAsync();
-            if (academicAppointment == null)
+            if (activeAcademicYearAppointment == null)
                 return NotFound(new ApiResponse(404, "Active academic appointment not found.", new { IsSuccess = false }));
              
-            var student = await _dbContext.Students.FirstOrDefaultAsync(s => s.AppUserId == userId && s.AcademicAppointmentId == academicAppointment.Id);
+            var student = await _dbContext.Students.FirstOrDefaultAsync(s => s.AppUserId == userId && s.AcademicAppointmentId == activeAcademicYearAppointment.Id);
             if (student == null)
                 return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
 
             List<Student> students = new List<Student>();
             
             if (student.Specialty == "CS")
-                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && (s.Specialty == "CS") && s.AcademicAppointmentId == academicAppointment.Id).ToListAsync();
+                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && s.Specialty == "CS" && s.AcademicAppointmentId == activeAcademicYearAppointment.Id).ToListAsync();
             else if (student.Specialty == "CS & MATH")
-                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && (s.Specialty == "CS & MATH") && s.AcademicAppointmentId == academicAppointment.Id).ToListAsync();
+                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && s.Specialty == "CS & MATH" && s.AcademicAppointmentId == activeAcademicYearAppointment.Id).ToListAsync();
             else if (student.Specialty == "CS & STAT")
-                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && (s.Specialty == "CS & STAT") && s.AcademicAppointmentId == academicAppointment.Id).ToListAsync();
+                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && s.Specialty == "CS & STAT" && s.AcademicAppointmentId == activeAcademicYearAppointment.Id).ToListAsync();
             else
-                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && (s.Specialty == "CS & PHYS") && s.AcademicAppointmentId == academicAppointment.Id).ToListAsync();
+                students = await _dbContext.Students.Include(s => s.AppUser).Where(s => s.TeamId == null && s.InTeam == false && s.Specialty == "CS & PHYS" && s.AcademicAppointmentId == activeAcademicYearAppointment.Id).ToListAsync();
 
             if (students == null || !students.Any())
                 return NotFound(new ApiResponse(404, "Students not found.", new { IsSuccess = false }));

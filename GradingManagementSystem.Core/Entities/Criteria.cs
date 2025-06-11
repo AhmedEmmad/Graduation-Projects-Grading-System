@@ -21,7 +21,7 @@
         public AcademicAppointment AcademicAppointment { get; set; }
         public ICollection<Schedule> Schedules { get; set; } = new HashSet<Schedule>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
-        public ICollection<Team> Teams { get; set; } = new HashSet<Team>();
+        //public ICollection<Team> Teams { get; set; } = new HashSet<Team>();
         public ICollection<CriteriaSchedule> CriteriaSchedules { get; set; } = new List<CriteriaSchedule>();
         #endregion
     }

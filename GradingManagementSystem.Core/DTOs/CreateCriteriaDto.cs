@@ -14,10 +14,10 @@ namespace GradingManagementSystem.Core.DTOs
         public int MaxGrade { get; set; }
 
         [Required(ErrorMessage = "Evaluator is required.")]
-        public string Evaluator { get; set; } // "Admin" Or "Supervisor" Or "Examiner"
+        public string Evaluator { get; set; }
 
         [Required(ErrorMessage = "GivenTo is required.")]
-        public string GivenTo { get; set; } // "Student" Or "Team"
+        public string GivenTo { get; set; }
 
         [Required(ErrorMessage = "Specialty is required.")]
         public string Specialty { get; set; }

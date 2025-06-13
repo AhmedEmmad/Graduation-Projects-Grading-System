@@ -6,7 +6,6 @@ using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 
 namespace GradingManagementSystem.APIs.Controllers
 {
@@ -158,17 +157,12 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Select(group =>
                 {
                     var scheduleDate = group.First().Schedule.ScheduleDate;
-                    string status;
-                    if (currentDateTime <= scheduleDate)
-                        status = "Upcoming";
-                    else
-                        status = "Finished";
-
+                    
                     return new DoctorScheduleDto
                     {
                         ScheduleId = group.Key, 
                         ScheduleDate = scheduleDate,
-                        Status = status,
+                        Status = group.First().Schedule.Status,
                         TeamId = group.First().Schedule.TeamId,
                         TeamName = group.First().Schedule.Team?.Name,
                         TeamLeaderId = group.First().Schedule.Team?.LeaderId,
@@ -253,17 +247,12 @@ namespace GradingManagementSystem.APIs.Controllers
                 {
                     var schedule = group.First();
                     var scheduleDate = schedule.ScheduleDate;
-                    string status;
-                    if (currentDateTime <= scheduleDate)
-                        status = "Upcoming";
-                    else
-                        status = "Finished";
-
+                    
                     return new StudentScheduleDto
                     {
                         ScheduleId = schedule.Id,
                         ScheduleDate = scheduleDate,
-                        Status = status,
+                        Status = group.First().Status,
                         TeamId = schedule.TeamId,
                         TeamName = schedule.Team?.Name,
                         ProjectName = schedule.Team?.FinalProjectIdea?.ProjectName,

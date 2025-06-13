@@ -55,26 +55,26 @@ namespace GradingManagementSystem.Repository
         public async Task<StudentProfileDto?> GetStudentProfileAsync(string userId, AcademicAppointment? currentAppointment, DateTime currentTime)
         {
 
-            if (currentAppointment == null)
-                return null;
+            //if (currentAppointment == null)
+            //    return null;
 
-            if (currentAppointment.FirstTermStart > currentTime || currentAppointment.SecondTermEnd < currentTime)
-                return null;
+            //if (currentAppointment.FirstTermStart > currentTime || currentAppointment.SecondTermEnd < currentTime)
+            //    return null;
 
             var studentUser = await _dbContext.Users
                 .Include(u => u.Student)
-                .ThenInclude(s => s.Team) // Ensure Team is included to avoid null reference
+                .ThenInclude(s => s.Team)
                 .FirstOrDefaultAsync(u => u.Id == userId);
             if (studentUser == null || studentUser.Student == null)
                 return null;
 
-            string currentTerm = string.Empty;
-            if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
-                currentTerm = "First-Term";
-            else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
-                currentTerm = "Second-Term";
-            else
-                currentTerm = "Invalid-Term";
+            //string currentTerm = string.Empty;
+            //if (currentAppointment?.FirstTermStart <= currentTime && currentAppointment?.FirstTermEnd >= currentTime)
+            //    currentTerm = "First-Term";
+            //else if (currentAppointment?.SecondTermStart <= currentTime && currentAppointment?.SecondTermEnd >= currentTime)
+            //    currentTerm = "Second-Term";
+            //else
+            //    currentTerm = "Invalid-Term";
 
             return new StudentProfileDto
             {
@@ -85,12 +85,12 @@ namespace GradingManagementSystem.Repository
                 ProfilePicture = studentUser.ProfilePicture,
                 EnrollmentDate = studentUser.Student.EnrollmentDate,
                 TeamId = studentUser.Student.TeamId,
-                HasProject = studentUser.Student.Team?.HasProject ?? false, // Handle null Team
+                HasProject = studentUser.Student.Team?.HasProject ?? false,
                 LeaderOfTeamId = studentUser.Student.LeaderOfTeamId,
                 InTeam = studentUser.Student.InTeam,
                 Specialty = studentUser.Specialty,
-                CurrentAcademicYear = currentAppointment?.Year,
-                CurrentAcademicTerm = currentTerm,
+                CurrentAcademicYear = null,
+                CurrentAcademicTerm = null,
             };
         }
 

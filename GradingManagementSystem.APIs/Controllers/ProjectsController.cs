@@ -305,18 +305,27 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Accepted Project Ideas Retrieved Successfully", new { IsSuccess = true, acceptedTeamProjects }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPost("RequestDoctorProjectIdea")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> RequestProjectIdeaFromDrByTeam([FromBody] RequestProjectIdeaFromDrByTeamDto model)
         {
-            if (model == null)
+            if (model is null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+            if (model.TeamId <= 0 || model.TeamLeaderId <= 0  || model.ProjectId <= 0 || model.DoctorId <= 0)
+                return BadRequest(new ApiResponse(400, "Invalid input data, Please enter valid team id, project id and doctor id.", new { IsSuccess = false }));
 
             var leaderAppUserId = User.FindFirst("UserId")?.Value;
+            if (leaderAppUserId == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
             var leader = await _unitOfWork.Repository<Student>().FindAsync(l => l.AppUserId == leaderAppUserId);
             if (leader == null)
                 return NotFound(new ApiResponse(404, "Student not found.", new { IsSuccess = false }));
+
+            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+                                                       .FindAsync(a => a.Status == StatusType.Active.ToString());
+            if (academicAppointment == null)
+                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
             var teamExists = await _unitOfWork.Repository<Team>().FindAsync(t => t.Id == model.TeamId);
             if (teamExists == null)
@@ -324,11 +333,12 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var projectExists = await _unitOfWork.Repository<DoctorProjectIdea>()
                                                  .FindAsync(p => p.Id == model.ProjectId &&
-                                                                 p.Status == StatusType.Accepted.ToString());
-            if (projectExists is null)
+                                                                 p.Status == StatusType.Accepted.ToString() &&
+                                                                 p.AcademicAppointmentId == academicAppointment.Id);
+            if (projectExists == null)
                 return NotFound(new ApiResponse(404, "Project not found or not accepted.", new { IsSuccess = false }));
 
-            if(leader.TeamId != model.TeamId || leader.LeaderOfTeamId == null)
+            if(leader.TeamId != model.TeamId || leader.LeaderOfTeamId == null || leader.TeamId == null || leader.InTeam == false)
                 return BadRequest(new ApiResponse(400, "You're not in this team.", new { IsSuccess = false }));
 
             if(leader.LeaderOfTeam?.HasProject == true)
@@ -339,14 +349,10 @@ namespace GradingManagementSystem.APIs.Controllers
                                                                                  tr.DoctorProjectIdeaId == projectExists.Id &&
                                                                                  tr.LeaderId == leader.Id &&
                                                                                  tr.DoctorId == projectExists.DoctorId &&
-                                                                                 tr.Status == StatusType.Pending.ToString());
+                                                                                 tr.Status == StatusType.Pending.ToString() &&
+                                                                                 tr.AcademicAppointmentId == academicAppointment.Id);
             if (existingTeamRequest != null)
                 return BadRequest(new ApiResponse(400, "A request exists before that for this project idea.", new { IsSuccess = false }));
-            
-            var academicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
-                                                       .FindAsync(a => a.Status == StatusType.Active.ToString());
-            if (academicAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
 
             var projectRequest = new TeamRequestDoctorProjectIdea
             {
@@ -360,10 +366,10 @@ namespace GradingManagementSystem.APIs.Controllers
             await _unitOfWork.Repository<TeamRequestDoctorProjectIdea>().AddAsync(projectRequest);
             await _unitOfWork.CompleteAsync();
 
-            return Ok(new ApiResponse(200, $"Request of this project successfully submitted!", new { IsSuccess = true }));
+            return Ok(new ApiResponse(200, "Request of this project successfully submitted!", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("PendingTeamRequestsForDoctorProjectIdeas/{doctorId}")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllPendingTeamRequestsForDoctorProjectIdeas(int doctorId)
@@ -377,19 +383,20 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var pendingTeamRequests = await _projectRepository.GetPendingTeamRequestsForDoctorProjectIdeasAsync(doctor.Id);
             if (pendingTeamRequests is null || !pendingTeamRequests.Any())
-                return NotFound(new ApiResponse(404, $"No team requests for project ideas.", new { IsSuccess = false }));
+                return NotFound(new ApiResponse(404, "No team requests for your project ideas.", new { IsSuccess = false }));
 
-            return Ok(new ApiResponse(200, "Pending team requests for project ideas retrieved successfully.", new { IsSuccess = true, pendingTeamRequests }));
+            return Ok(new ApiResponse(200, "Pending team requests for your project ideas retrieved successfully.", new { IsSuccess = true, pendingTeamRequests }));
         }
 
-        // Finished / Reviewed / Tested / Edited  
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("ReviewTeamProjectRequest")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> DoctorReviewTeamProjectIdeaRequest([FromBody] ReviewTeamProjectRequestDto model)
         {
-            if (model == null)
+            if (model is null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
-
+            if (model.RequestId <= 0 || model.DoctorId <= 0 || string.IsNullOrEmpty(model.NewStatus))
+                return BadRequest(new ApiResponse(400, "Invalid input data, Please enter valid request id, doctor id and status.", new { IsSuccess = false }));
             if (model.NewStatus != StatusType.Accepted.ToString() && model.NewStatus != StatusType.Rejected.ToString())
                 return BadRequest(new ApiResponse(400, "Invalid Status Value. Use 'Accepted' or 'Rejected'.", new { IsSuccess = false }));
 
@@ -400,7 +407,7 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var projectRequest = await _dbContext.TeamsRequestDoctorProjectIdeas
                                                  .Include(r => r.DoctorProjectIdea)
-                                                 .FirstOrDefaultAsync(r => r.Id == model.RequestId);
+                                                 .FirstOrDefaultAsync(r => r.Id == model.RequestId && r.AcademicAppointmentId == activeAcademicYearAppointment.Id);
             if (projectRequest == null)
                 return NotFound(new ApiResponse(404, "Request not found.", new { IsSuccess = false }));
 
@@ -441,15 +448,22 @@ namespace GradingManagementSystem.APIs.Controllers
                     AcademicAppointmentId = activeAcademicYearAppointment?.Id
                 };
                 await _unitOfWork.Repository<FinalProjectIdea>().AddAsync(finalProject);
+                await _unitOfWork.CompleteAsync();
 
-                // Set the Taken property of the DoctorProjectIdea to true  
+                if (projectRequest?.DoctorProjectIdea == null)
+                {
+                    return NotFound(new ApiResponse(404, "Doctor project idea not found.", new { IsSuccess = false }));
+                }
+
                 projectRequest.DoctorProjectIdea.Taken = true;
                 _unitOfWork.Repository<DoctorProjectIdea>().Update(projectRequest.DoctorProjectIdea);
+                await _unitOfWork.CompleteAsync();
 
                 var pendingRequests = await _unitOfWork.Repository<TeamRequestDoctorProjectIdea>()
                     .FindAllAsync(r => r.LeaderId == leader.Id && 
                                        r.Status == StatusType.Pending.ToString() &&
-                                       r.TeamId == team.Id && 
+                                       r.TeamId == team.Id &&
+                                       r.AcademicAppointmentId == activeAcademicYearAppointment.Id &&
                                        r.Id != projectRequest.Id);
 
                 foreach (var r in pendingRequests)
@@ -464,7 +478,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Project Request approved and other requests rejected successfully!", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("FinalProjectIdeas")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllFinalProjectIdeas()
@@ -476,7 +490,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Final project ideas retrieved successfully.", new { IsSuccess = true, finalProjectIdeas }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("FinalProjectIdea/{teamId}")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetFinalProjectIdeaById(int teamId)

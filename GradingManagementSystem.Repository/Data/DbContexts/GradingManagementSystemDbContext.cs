@@ -43,5 +43,6 @@ namespace GradingManagementSystem.Repository.Data.DbContexts
         public DbSet<AcademicAppointment> AcademicAppointments { get; set; }
         public DbSet<Evaluation> Evaluations { get; set; }
         public DbSet<CriteriaSchedule> CriteriaSchedules { get; set; }
+        public DbSet<StudentTotalGrade> StudentTotalGrades { get; set; }
     }
 }

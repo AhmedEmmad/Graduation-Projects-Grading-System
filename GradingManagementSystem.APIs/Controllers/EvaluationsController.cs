@@ -545,10 +545,13 @@ namespace GradingManagementSystem.APIs.Controllers
 
             if (model.ScheduleId.HasValue && model.TeamId.HasValue)
             {
-                var schedule = await _dbContext.Schedules.Include(s => s.CommitteeDoctorSchedules)
-                                                         .FirstOrDefaultAsync(s => s.Id == model.ScheduleId &&
-                                                                                   s.AcademicAppointmentId == activeAppointment.Id &&
-                                                                                   s.TeamId == model.TeamId);
+                var schedule = await _dbContext.Schedules
+                    .Include(s => s.CommitteeDoctorSchedules)
+                    .Include(s => s.Team)
+                        .ThenInclude(t => t.Students)
+                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId &&
+                                              s.AcademicAppointmentId == activeAppointment.Id &&
+                                              s.TeamId == model.TeamId);
 
                 if (schedule != null)
                 {
@@ -560,9 +563,64 @@ namespace GradingManagementSystem.APIs.Controllers
                         .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Supervisor")
                         .AllAsync(cds => cds.HasCompletedEvaluation);
 
-                    if (allExaminersCompleted && supervisorCompleted)
+                    // Check all students in team evaluated by all "Team" and "Student" criteria
+                    bool allCriteriaEvaluated = false;
+                    if (schedule.Team != null && schedule.Team.Students != null)
+                    {
+                        var teamId = schedule.Team.Id;
+                        var studentIds = schedule.Team.Students.Select(st => st.Id).ToList();
+
+                        // Get all criteria for this team and appointment
+                        var criterias = await _dbContext.Criterias
+                            .Where(c => c.AcademicAppointmentId == activeAppointment.Id && c.Specialty == schedule.Team.Specialty)
+                            .ToListAsync();
+
+                        var teamCriterias = criterias.Where(c => c.GivenTo == "Team").ToList();
+                        var studentCriterias = criterias.Where(c => c.GivenTo == "Student").ToList();
+
+                        bool allTeamCriteriaEvaluated = true;
+                        foreach (var criteria in teamCriterias)
+                        {
+                            var hasEval = await _dbContext.Evaluations.AnyAsync(e =>
+                                e.CriteriaId == criteria.Id &&
+                                e.TeamId == teamId &&
+                                e.StudentId == null &&
+                                e.ScheduleId == schedule.Id &&
+                                e.AcademicAppointmentId == activeAppointment.Id);
+                            if (!hasEval)
+                            {
+                                allTeamCriteriaEvaluated = false;
+                                break;
+                            }
+                        }
+
+                        bool allStudentCriteriaEvaluated = true;
+                        foreach (var criteria in studentCriterias)
+                        {
+                            foreach (var studentId in studentIds)
+                            {
+                                var hasEval = await _dbContext.Evaluations.AnyAsync(e =>
+                                    e.CriteriaId == criteria.Id &&
+                                    e.TeamId == teamId &&
+                                    e.StudentId == studentId &&
+                                    e.ScheduleId == schedule.Id &&
+                                    e.AcademicAppointmentId == activeAppointment.Id);
+                                if (!hasEval)
+                                {
+                                    allStudentCriteriaEvaluated = false;
+                                    break;
+                                }
+                            }
+                            if (!allStudentCriteriaEvaluated) break;
+                        }
+
+                        allCriteriaEvaluated = allTeamCriteriaEvaluated && allStudentCriteriaEvaluated;
+                    }
+
+                    if (allExaminersCompleted && supervisorCompleted && allCriteriaEvaluated)
                     {
                         schedule.IsGraded = true;
+                        schedule.Status = "Finished";
                         _dbContext.Schedules.Update(schedule);
                         await _dbContext.SaveChangesAsync();
                     }
@@ -712,95 +770,128 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var evaluations = await _dbContext.Evaluations
                 .Include(e => e.Criteria)
-                .Where(e => (e.StudentId == studentId || e.TeamId == teamId) &&
-                            e.AcademicAppointmentId == activeAppointment.Id)
+                .Where(e => (e.StudentId == studentId || (e.StudentId == null && e.TeamId == teamId))
+                    && e.AcademicAppointmentId == activeAppointment.Id)
                 .AsNoTracking()
                 .ToListAsync();
 
             if (evaluations == null || !evaluations.Any())
                 return NotFound(new ApiResponse(404, "No grades found for the student.", new { IsSuccess = false }));
 
-            var totalGradeAfterSummation = 0.0;
+            // Get all criteria for this specialty and appointment
+            var criteriaList = await _dbContext.Criterias
+                .Where(c => c.Specialty == student.Team.Specialty && c.AcademicAppointmentId == activeAppointment.Id)
+                .AsNoTracking()
+                .ToListAsync();
 
-            // Supervisor
-            var supervisorEvaluations = evaluations
-                .Where(e => e.EvaluatorRole == "Supervisor" &&
-                    ((e.Criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId) ||
-                     (e.Criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
-                .GroupBy(e => e.Criteria.Name)
-                .Select(g =>
+            var gradesResult = new List<object>();
+            double totalGrade = 0.0;
+
+            foreach (var criteria in criteriaList)
+            {
+                // Supervisor: get only the grade given by supervisor for this student/criteria
+                if (criteria.Evaluator == "Supervisor")
                 {
-                    var criteria = g.First().Criteria;
-                    var totalGrade = g.Sum(e => e.Grade);
-                    totalGradeAfterSummation += totalGrade;
-                    return new
-                    {
-                        CriteriaId = criteria.Id,
-                        CriteriaName = criteria.Name,
-                        CriteriaDescription = criteria.Description,
-                        GivenTo = criteria.GivenTo,
-                        MaximumGrade = criteria.MaxGrade,
-                        Grade = Math.Round(totalGrade),
-                        EvaluatorRole = "Supervisor"
-                    };
-                });
+                    var grade = evaluations
+                        .Where(e => e.CriteriaId == criteria.Id && e.EvaluatorRole == "Supervisor"
+                            && ((criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId)
+                                || (criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
+                        .Select(e => (double?)e.Grade)
+                        .FirstOrDefault();
 
-            // Admin
-            var adminEvaluations = evaluations
-                .Where(e => e.EvaluatorRole == "Admin" &&
-                    ((e.Criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId) ||
-                     (e.Criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
-                .GroupBy(e => e.Criteria.Name)
-                .Select(g =>
+                    if (grade.HasValue)
+                    {
+                        gradesResult.Add(new
+                        {
+                            CriteriaId = criteria.Id,
+                            CriteriaName = criteria.Name,
+                            CriteriaDescription = criteria.Description,
+                            GivenTo = criteria.GivenTo,
+                            MaximumGrade = criteria.MaxGrade,
+                            Grade = Math.Round(grade.Value),
+                            EvaluatorRole = "Supervisor"
+                        });
+                        totalGrade += grade.Value;
+                    }
+                }
+                // Admin: get only the grade given by admin for this student/criteria
+                else if (criteria.Evaluator == "Admin")
                 {
-                    var criteria = g.First().Criteria;
-                    var totalGrade = g.Sum(e => e.Grade);
-                    totalGradeAfterSummation += totalGrade;
-                    return new
-                    {
-                        CriteriaId = criteria.Id,
-                        CriteriaName = criteria.Name,
-                        CriteriaDescription = criteria.Description,
-                        GivenTo = criteria.GivenTo,
-                        MaximumGrade = criteria.MaxGrade,
-                        Grade = Math.Round(totalGrade),
-                        EvaluatorRole = "Admin"
-                    };
-                });
+                    var grade = evaluations
+                        .Where(e => e.CriteriaId == criteria.Id && e.EvaluatorRole == "Admin"
+                            && ((criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId)
+                                || (criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
+                        .Select(e => (double?)e.Grade)
+                        .FirstOrDefault();
 
-            // Examiner: average of summation for both student and team criteria
-            var examinerEvaluations = evaluations
-                .Where(e => e.EvaluatorRole == "Examiner" &&
-                    ((e.Criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId) ||
-                     (e.Criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
-                .GroupBy(e => e.Criteria.Name)
-                .Select(g =>
+                    if (grade.HasValue)
+                    {
+                        gradesResult.Add(new
+                        {
+                            CriteriaId = criteria.Id,
+                            CriteriaName = criteria.Name,
+                            CriteriaDescription = criteria.Description,
+                            GivenTo = criteria.GivenTo,
+                            MaximumGrade = criteria.MaxGrade,
+                            Grade = Math.Round(grade.Value),
+                            EvaluatorRole = "Admin"
+                        });
+                        totalGrade += grade.Value;
+                    }
+                }
+                // Examiner: get average of all grades for this student/criteria
+                else if (criteria.Evaluator == "Examiner")
                 {
-                    var criteria = g.First().Criteria;
-                    var totalGrade = g.Sum(e => e.Grade);
-                    var count = g.Count();
-                    var averageGrade = count > 0 ? totalGrade / count : 0;
-                    totalGradeAfterSummation += averageGrade;
-                    return new
+                    var grades = evaluations
+                        .Where(e => e.CriteriaId == criteria.Id && e.EvaluatorRole == "Examiner"
+                            && ((criteria.GivenTo == "Student" && e.StudentId == studentId && e.TeamId == teamId)
+                                || (criteria.GivenTo == "Team" && e.StudentId == null && e.TeamId == teamId)))
+                        .Select(e => e.Grade)
+                        .ToList();
+
+                    if (grades.Any())
                     {
-                        CriteriaId = criteria.Id,
-                        CriteriaName = criteria.Name,
-                        CriteriaDescription = criteria.Description,
-                        GivenTo = criteria.GivenTo,
-                        MaximumGrade = criteria.MaxGrade,
-                        Grade = Math.Round(averageGrade),
-                        EvaluatorRole = "Examiner"
-                    };
-                });
+                        var avg = grades.Average();
+                        gradesResult.Add(new
+                        {
+                            CriteriaId = criteria.Id,
+                            CriteriaName = criteria.Name,
+                            CriteriaDescription = criteria.Description,
+                            GivenTo = criteria.GivenTo,
+                            MaximumGrade = criteria.MaxGrade,
+                            Grade = Math.Round(avg),
+                            EvaluatorRole = "Examiner"
+                        });
+                        totalGrade += avg;
+                    }
+                }
+            }
 
-            var totalGrade = Math.Round(totalGradeAfterSummation);
+            totalGrade = Math.Round(totalGrade);
 
-            var combinedEvaluations = supervisorEvaluations
-                .Concat(adminEvaluations)
-                .Concat(examinerEvaluations)
-                .ToList();
+            if (_dbContext.StudentTotalGrades.Any(stg => stg.StudentId == studentId && stg.TeamId == teamId))
+            {
+                // Update existing total grade
+                var existingTotalGrade = await _dbContext.StudentTotalGrades.FirstOrDefaultAsync(stg => stg.StudentId == studentId && stg.TeamId == teamId);
+                if (existingTotalGrade != null)
+                {
+                    existingTotalGrade.Total = totalGrade;
+                    _dbContext.StudentTotalGrades.Update(existingTotalGrade);
+                }
+            }
+            else
+            {
+                var studentTotalGrade = new StudentTotalGrade 
+                {
+                    StudentId = studentId,
+                    TeamId = teamId,
+                    Total = totalGrade
+                };
+                await _dbContext.StudentTotalGrades.AddAsync(studentTotalGrade);
+            }
+            await _dbContext.SaveChangesAsync();
 
-            return Ok(new ApiResponse(200, "Student grades retrieved successfully.", new { IsSuccess = true, Grades = combinedEvaluations, totalGrade }));
+            return Ok(new ApiResponse(200, "Student grades retrieved successfully.", new { IsSuccess = true, Grades = gradesResult, totalGrade }));
         }
 
         // Finished / Reviewed / Tested / Edited / I
@@ -809,105 +900,100 @@ namespace GradingManagementSystem.APIs.Controllers
         public async Task<IActionResult> ExportGradesForSpecialty(string specialty)
         {
             var adminAppUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (adminAppUserId == null)
-                return Unauthorized(new ApiResponse(401, "Unauthorized user.", new { IsSuccess = false }));
-            if (appUserRole != "Admin" || appUserRole == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (appUserRole == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized role.", new { IsSuccess = false }));
 
             var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found in this time.", new { IsSuccess = true }));
 
             var teams = await _dbContext.Teams
-                                        .Include(t => t.Students)
-                                            .ThenInclude(s => s.AppUser)
-                                        .Include(t => t.Schedules)
-                                        .Include(t => t.Evaluations)
-                                        .Where(t => t.Specialty == specialty &&
-                                                    t.HasProject == true &&
-                                                    t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id &&
-                                                                         s.Status == "Finished"
-                                                                   ) &&
-                                                    t.AcademicAppointmentId == activeAppointment.Id
-                                               )
-                                        .AsNoTracking()
-                                        .OrderBy(t => t.Name)
-                                        .ToListAsync();
+                .Include(t => t.Students)
+                    .ThenInclude(s => s.AppUser)
+                .Include(t => t.Schedules)
+                .Include(t => t.Evaluations)
+                .Where(t => t.Specialty == specialty &&
+                            t.HasProject == true &&
+                            t.Schedules.Any(s => s.AcademicAppointmentId == activeAppointment.Id) &&
+                            t.AcademicAppointmentId == activeAppointment.Id)
+                .AsNoTracking()
+                .OrderBy(t => t.Name)
+                .ToListAsync();
 
             if (teams == null || !teams.Any())
-                return NotFound(new ApiResponse(404, $"No teams found for this specialty: '{specialty}'.", new { IsSuccess = false }));
+                return NotFound(new ApiResponse(404, $"No teams found or there exist teams not evaluated for this specialty: '{specialty}'.", new { IsSuccess = false }));
 
             var criterias = await _dbContext.Criterias
-                                            .Where(c => c.IsActive == true &&
-                                                        c.Specialty == specialty &&
-                                                        c.AcademicAppointmentId == activeAppointment.Id
-                                                  )
-                                            .AsNoTracking()
-                                            .OrderBy(c => c.Name)
-                                            .ToListAsync();
+                .Where(c => c.IsActive == true &&
+                            c.Specialty == specialty &&
+                            c.AcademicAppointmentId == activeAppointment.Id)
+                .AsNoTracking()
+                .OrderBy(c => c.Name)
+                .ToListAsync();
 
             if (criterias == null || !criterias.Any())
                 return NotFound(new ApiResponse(404, $"No criterias found for this specialty: '{specialty}'.", new { IsSuccess = false }));
 
-            // Check if all supervisors and admins have evaluated all students in the teams
             var supervisorCriteria = criterias.Where(c => c.Evaluator == "Supervisor").ToList();
             var adminCriteria = criterias.Where(c => c.Evaluator == "Admin").ToList();
             var examinerCriteria = criterias.Where(c => c.Evaluator == "Examiner").ToList();
 
-            // Check if all supervisors have evaluated all students in the teams
+            // Validation: all teams must be fully evaluated
             foreach (var team in teams)
             {
                 foreach (var student in team.Students)
                 {
-                    // Check Supervisor Evaluations
                     foreach (var criteria in supervisorCriteria)
                     {
                         var supervisorEvaluation = await _dbContext.Evaluations
                             .Where(e => e.CriteriaId == criteria.Id &&
                                         e.TeamId == team.Id &&
+                                        e.AcademicAppointmentId == activeAppointment.Id &&
                                         (e.StudentId == student.Id || e.StudentId == null) &&
                                         e.EvaluatorRole == "Supervisor")
                             .OrderBy(e => e.EvaluationDate)
                             .ToListAsync();
 
                         var totalSupervisors = await _dbContext.CommitteeDoctorSchedules
-                                                             .Where(cds => cds.Schedule.TeamId == team.Id &&
-                                                                           cds.DoctorRole == "Supervisor")
-                                                             .CountAsync();
+                            .Where(cds => cds.Schedule.TeamId == team.Id &&
+                                          cds.Schedule.AcademicAppointmentId == activeAppointment.Id &&
+                                          cds.DoctorRole == "Supervisor")
+                            .CountAsync();
 
                         if (supervisorEvaluation.Count != totalSupervisors)
                         {
-                            return BadRequest(new ApiResponse(400, $"Not all supervisors have evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                            return BadRequest(new ApiResponse(400, $"Not all supervisors have evaluated remaining teams.", new { IsSuccess = false }));
                         }
                     }
                 }
             }
 
-            // Check if all admins have evaluated all students in the teams
             foreach (var team in teams)
             {
                 foreach (var student in team.Students)
                 {
-                    // Check Admin Evaluations
                     foreach (var criteria in adminCriteria)
                     {
                         var adminEvaluation = await _dbContext.Evaluations
                             .Where(e => e.CriteriaId == criteria.Id &&
                                         e.TeamId == team.Id &&
+                                        e.AcademicAppointmentId == activeAppointment.Id &&
                                         (e.StudentId == student.Id || e.StudentId == null) &&
                                         e.EvaluatorRole == "Admin")
                             .OrderBy(e => e.EvaluationDate)
                             .ToListAsync();
+
                         if (!adminEvaluation.Any())
                         {
-                            return BadRequest(new ApiResponse(400, $"Admin has not evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                            return BadRequest(new ApiResponse(400, $"Admin has not evaluated remaining teams.", new { IsSuccess = false }));
                         }
                     }
                 }
             }
 
-            // Check if all examiners have evaluated all students in the teams
             foreach (var team in teams)
             {
                 foreach (var student in team.Students)
@@ -915,21 +1001,23 @@ namespace GradingManagementSystem.APIs.Controllers
                     foreach (var criteria in examinerCriteria)
                     {
                         var evaluations = await _dbContext.Evaluations
-                                                          .Where(e => e.CriteriaId == criteria.Id &&
-                                                                      e.TeamId == team.Id &&
-                                                                      (e.StudentId == student.Id || e.StudentId == null) &&
-                                                                      e.EvaluatorRole == "Examiner")
-                                                            .OrderBy(e => e.EvaluationDate)
-                                                          .ToListAsync();
+                            .Where(e => e.CriteriaId == criteria.Id &&
+                                        e.TeamId == team.Id &&
+                                        e.AcademicAppointmentId == activeAppointment.Id &&
+                                        (e.StudentId == student.Id || e.StudentId == null) &&
+                                        e.EvaluatorRole == "Examiner")
+                            .OrderBy(e => e.EvaluationDate)
+                            .ToListAsync();
 
                         var totalExaminers = await _dbContext.CommitteeDoctorSchedules
-                                                             .Where(cds => cds.Schedule.TeamId == team.Id &&
-                                                                           cds.DoctorRole == "Examiner")
-                                                             .CountAsync();
+                            .Where(cds => cds.Schedule.TeamId == team.Id &&
+                                          cds.Schedule.AcademicAppointmentId == activeAppointment.Id &&
+                                          cds.DoctorRole == "Examiner")
+                            .CountAsync();
 
                         if (evaluations.Count != totalExaminers)
                         {
-                            return BadRequest(new ApiResponse(400, $"Not all examiners have evaluated student '{student.FullName}' in team '{team.Name}' for criteria '{criteria.Name}'.", new { IsSuccess = false }));
+                            return BadRequest(new ApiResponse(400, $"Not all examiners have evaluated remaining teams.", new { IsSuccess = false }));
                         }
                     }
                 }
@@ -952,6 +1040,8 @@ namespace GradingManagementSystem.APIs.Controllers
                 foreach (var c in examinerCriteria)
                     worksheet.Cells[1, col++].Value = $"Examiner: {c.Name} (Avg)";
 
+                worksheet.Cells[1, col++].Value = "Total";
+
                 int row = 2;
                 foreach (var team in teams)
                 {
@@ -962,54 +1052,77 @@ namespace GradingManagementSystem.APIs.Controllers
                         worksheet.Cells[row, col++].Value = student.AppUser.Email;
                         worksheet.Cells[row, col++].Value = team.Name;
 
+                        // Get all evaluations for this student/team
                         var evaluations = await _dbContext.Evaluations
-                                                          .Include(e => e.Criteria)
-                                                          .Where(e => ((e.StudentId == student.Id && e.TeamId == team.Id) ||
-                                                                      (e.StudentId == null && e.TeamId == team.Id))
-                                                                )
-                                                          .AsNoTracking()
-                                                          .ToListAsync();
+                            .Include(e => e.Criteria)
+                            .Where(e => (e.StudentId == student.Id && e.TeamId == team.Id) ||
+                                        (e.StudentId == null && e.TeamId == team.Id))
+                            .AsNoTracking()
+                            .ToListAsync();
 
+                        double totalGrade = 0.0;
+
+                        // Admin grades
                         foreach (var c in adminCriteria)
                         {
-                            var grade = evaluations.FirstOrDefault(e => e.CriteriaId == c.Id &&
-                                                                   e.EvaluatorRole == "Admin")?.Grade;
+                            double? grade = evaluations
+                                .Where(e => e.CriteriaId == c.Id && e.EvaluatorRole == "Admin" &&
+                                    ((c.GivenTo == "Student" && e.StudentId == student.Id && e.TeamId == team.Id) ||
+                                     (c.GivenTo == "Team" && e.StudentId == null && e.TeamId == team.Id)))
+                                .Select(e => (double?)e.Grade)
+                                .FirstOrDefault();
 
-                            worksheet.Cells[row, col].Value = grade.HasValue ? grade.Value.ToString() : "N/A";
+                            worksheet.Cells[row, col].Value = grade.HasValue ? Math.Round(grade.Value).ToString() : "N/A";
                             if (grade.HasValue)
-                            {
                                 worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
-                            }
+                            if (grade.HasValue) totalGrade += grade.Value;
                             col++;
                         }
 
+                        // Supervisor grades
                         foreach (var c in supervisorCriteria)
                         {
-                            var grade = evaluations.FirstOrDefault(e => e.CriteriaId == c.Id &&
-                                                                   e.EvaluatorRole == "Supervisor")?.Grade;
+                            double? grade = evaluations
+                                .Where(e => e.CriteriaId == c.Id && e.EvaluatorRole == "Supervisor" &&
+                                    ((c.GivenTo == "Student" && e.StudentId == student.Id && e.TeamId == team.Id) ||
+                                     (c.GivenTo == "Team" && e.StudentId == null && e.TeamId == team.Id)))
+                                .Select(e => (double?)e.Grade)
+                                .FirstOrDefault();
 
-                            worksheet.Cells[row, col].Value = grade.HasValue ? grade.Value.ToString() : "N/A";
+                            worksheet.Cells[row, col].Value = grade.HasValue ? Math.Round(grade.Value).ToString() : "N/A";
                             if (grade.HasValue)
-                            {
                                 worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
-                            }
+                            if (grade.HasValue) totalGrade += grade.Value;
                             col++;
                         }
 
+                        // Examiner grades (average)
                         foreach (var c in examinerCriteria)
                         {
-                            var examinerGrades = evaluations.Where(e => e.CriteriaId == c.Id && e.EvaluatorRole == "Examiner")
-                                                            .Select(e => e.Grade)
-                                                            .ToList();
+                            var grades = evaluations
+                                .Where(e => e.CriteriaId == c.Id && e.EvaluatorRole == "Examiner" &&
+                                    ((c.GivenTo == "Student" && e.StudentId == student.Id && e.TeamId == team.Id) ||
+                                     (c.GivenTo == "Team" && e.StudentId == null && e.TeamId == team.Id)))
+                                .Select(e => e.Grade)
+                                .ToList();
 
-                            var average = examinerGrades.Any() ? examinerGrades.Average() : (double?)null;
-                            worksheet.Cells[row, col].Value = average.HasValue ? average.Value.ToString() : "N/A";
-                            if (average.HasValue)
-                            {
+                            double? avg = grades.Any() ? (double?)grades.Average() : null;
+                            worksheet.Cells[row, col].Value = avg.HasValue ? Math.Round(avg.Value).ToString() : "N/A";
+                            if (avg.HasValue)
                                 worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
-                            }
+                            if (avg.HasValue) totalGrade += avg.Value;
                             col++;
                         }
+
+                        // Get total from StudentTotalGrades if exists, else use calculated
+                        var studentTotal = await _dbContext.StudentTotalGrades
+                            .Where(stg => stg.StudentId == student.Id)
+                            .OrderByDescending(stg => stg.Total)
+                            .Select(stg => stg.Total)
+                            .FirstOrDefaultAsync();
+
+                        worksheet.Cells[row, col].Value = studentTotal.HasValue ? Math.Round(studentTotal.Value).ToString() : Math.Round(totalGrade).ToString();
+                        worksheet.Cells[row, col].Style.Numberformat.Format = "0.00";
 
                         row++;
                     }

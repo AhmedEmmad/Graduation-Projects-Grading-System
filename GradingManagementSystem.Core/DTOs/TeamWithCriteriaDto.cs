@@ -11,6 +11,8 @@
         public int? ScheduleId { get; set; }
         public DateTime? ScheduleDate { get; set; }
         public string? ScheduleStatus { get; set; } // "Upcoming", "InProgress", "Completed"
+        public int? SupervisorId { get; set; }
+        public string? SupervisorName { get; set; }
         public List<CriteriaDto> Criterias { get; set; } = new List<CriteriaDto>();
         public List<TeamMemberDto> TeamMembers { get; set; } = new List<TeamMemberDto>();
     }

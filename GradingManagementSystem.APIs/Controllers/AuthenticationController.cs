@@ -43,7 +43,7 @@ namespace GradingManagementSystem.APIs.Controllers
         // Doctor Registration Flow
         [HttpPost("DoctorRegister")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DoctorRegister([FromBody] DoctorRegisterDto model)
+        public async Task<IActionResult> DoctorRegister([FromBody] AdminDoctorRegisterDto model)
         {
             if (model is null)
                 return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
@@ -158,5 +158,26 @@ namespace GradingManagementSystem.APIs.Controllers
 
             return Ok(result);
         }
+        
+        // Admin Registration Flow
+        [HttpPost("AdminRegister")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminRegister([FromBody] AdminDoctorRegisterDto model)
+        {
+            if (model is null)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
+
+            var result = await _authService.RegisterAdminAsync(model);
+
+            if (result.StatusCode == 400)
+                return BadRequest(result);
+            if (result.StatusCode == 401)
+                return Unauthorized(result);
+            if (result.StatusCode == 404)
+                return NotFound(result);
+
+            return Ok(result);
+        }
+
     }
 }

@@ -27,7 +27,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _teamRepository = teamRepository;
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("AllTeamsWithProjects")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetAllTeams()
@@ -62,7 +62,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams with projects have been successfully retrieved.", new { IsSuccess = true, Teams = result }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("TeamWithMembers/{teamId}")]
         [Authorize(Roles = "Admin, Student, Doctor")]
         public async Task<IActionResult> GetTeamWithMembersById(int? teamId)
@@ -100,6 +100,7 @@ namespace GradingManagementSystem.APIs.Controllers
                 HasProject = team.HasProject,
                 LeaderId = team.LeaderId,
                 SupervisorId = team.SupervisorId,
+                Specialty = team.Specialty,
                 Members = team.Students.Select(s => new TeamMemberDto
                 {
                     Id = s.Id,
@@ -114,7 +115,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team and team members found.", new { IsSuccess = true, Team = teamWithMembers }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPost("CreateTeam")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamDto model)
@@ -126,36 +127,33 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
-                return NotFound(CreateErrorResponse404NotFound("Student not found."));
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
             var student = await _unitOfWork.Repository<Student>().FindAsync(S => S.AppUserId == studentAppUserId);
             if (student == null)
                 return NotFound(CreateErrorResponse404NotFound("Student not found."));
 
-            if (student.InTeam && student.TeamId != null)
+            if (student.InTeam && student.TeamId != null && student.LeaderOfTeamId != null)
                 return BadRequest(CreateErrorResponse400BadRequest("You are already exist in a team."));
-
-            if (student.LeaderOfTeamId != null)
-                return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of a team."));
 
             var teamExists = await _unitOfWork.Repository<Team>().FindAsync(t => t.Name == model.TeamName);
             if (teamExists != null)
                 return BadRequest(CreateErrorResponse400BadRequest("Team name already exists, Please type another unique name."));
 
-            if(teamExists?.LeaderId != null && teamExists?.LeaderId == student.Id)
+            if(teamExists?.LeaderId != null && teamExists?.LeaderId == student.Id && student.LeaderOfTeamId == student.Id)
                 return BadRequest(CreateErrorResponse400BadRequest("You are already a leader of this team."));
 
-            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+            var activeAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAcademicAppointment == null)
-                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+            if (activeAcademicYearAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found, You cannot create a team now."));
 
             var teamCreated = new Team
             {
                 Name = model.TeamName,
                 Specialty = student.Specialty,
                 LeaderId = student.Id,
-                AcademicAppointmentId = activeAcademicAppointment?.Id,
+                AcademicAppointmentId = activeAcademicYearAppointment?.Id,
             };
 
             await _unitOfWork.Repository<Team>().AddAsync(teamCreated);
@@ -175,10 +173,10 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _unitOfWork.CompleteAsync();
             
-            return Ok(new ApiResponse(200, $"Team {teamCreated?.Name} created successfully, You're leader of this team.", new { IsSuccess = true }));
-        }
+            return Ok(new ApiResponse(200, $"Team '{teamCreated?.Name}' created successfully, You're leader of this team.", new { IsSuccess = true }));
+        } 
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("DoctorTeams")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> GetAllTeamsForDoctorThatSupervisionOnThem()
@@ -198,13 +196,19 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Teams retrieved successfully.", new { IsSuccess = true, Teams = TeamsList }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPost("InviteStudent")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> SendInvitation([FromBody] InviteStudentDto model)
         {
             if (model is null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
+            if (model.LeaderId <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("LeaderId is required and must be a positive number."));
+            if (model.StudentId <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("StudentId is required and must be a positive number."));
+            if (model.TeamId <= 0)
+                return BadRequest(CreateErrorResponse400BadRequest("TeamId is required and must be a positive number."));
 
             var studentAppUserId = User.FindFirst("UserId")?.Value;
             if (studentAppUserId == null)
@@ -228,33 +232,33 @@ namespace GradingManagementSystem.APIs.Controllers
 
             var existingInvitation = await _unitOfWork.Repository<Invitation>()
                                                       .FindAsync(i => i.TeamId == model.TeamId &&
-                                                                 i.StudentId == model.StudentId &&
-                                                                 i.LeaderId == model.LeaderId &&
-                                                                 i.Status == StatusType.Pending.ToString());
+                                                                      i.StudentId == model.StudentId &&
+                                                                      i.LeaderId == model.LeaderId &&
+                                                                      i.Status == StatusType.Pending.ToString());
 
             if (existingInvitation != null)
                 return BadRequest(CreateErrorResponse400BadRequest("Invitation already exists."));
 
-            var activeAcademicAppointment = await _unitOfWork.Repository<AcademicAppointment>()
+            var activeAcademicYearAppointment = await _unitOfWork.Repository<AcademicAppointment>()
                                                             .FindAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAcademicAppointment == null)
-                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found."));
+            if (activeAcademicYearAppointment == null)
+                return NotFound(CreateErrorResponse404NotFound("No active academic appointment found. You cannot invite a student now."));
 
-            var invitation = new Invitation
+            var newStudentInvitation = new Invitation
             {
                 TeamId = model.TeamId,
                 StudentId = model.StudentId,
                 LeaderId = model.LeaderId,
-                AcademicAppointmentId = activeAcademicAppointment?.Id,
+                AcademicAppointmentId = activeAcademicYearAppointment?.Id,
             };
 
-            await _unitOfWork.Repository<Invitation>().AddAsync(invitation);
+            await _unitOfWork.Repository<Invitation>().AddAsync(newStudentInvitation);
             await _unitOfWork.CompleteAsync();
 
             return Ok(new ApiResponse(200, "Invitation sent successfully.", new { IsSuccess = true }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("TeamInvitations")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> GetTeamInvitations()
@@ -311,13 +315,17 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Team invitations retrieved successfully.", new { IsSuccess = true, Invitations = result }));
         }
 
-        // Finished / Reviewed  / Tested / Edited
+        // Finished / Reviewed  / Tested / Edited / D
         [HttpPut("ReviewTeamInvitation")]
         [Authorize(Roles = "Student")]
         public async Task<IActionResult> ReviewTeamInvitation([FromBody] ReviewTeamInvitationDto model)
         {
+            if (model is null)
+                return BadRequest(CreateErrorResponse400BadRequest("Invalid input data."));
             if (model.invitationId <= 0)
                 return BadRequest(CreateErrorResponse400BadRequest("InvitationId is required."));
+            if (string.IsNullOrEmpty(model.newStatus))
+                return BadRequest(CreateErrorResponse400BadRequest("New status is required."));
 
             if (model.newStatus != StatusType.Accepted.ToString() && model.newStatus != StatusType.Rejected.ToString())
                 return BadRequest(CreateErrorResponse400BadRequest("Invalid Status Value. Use 'Accepted' or 'Rejected'."));

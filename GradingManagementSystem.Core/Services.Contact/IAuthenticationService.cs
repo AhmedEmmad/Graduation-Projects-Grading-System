@@ -6,7 +6,8 @@ namespace GradingManagementSystem.Core.Services.Contact
     public interface IAuthenticationService
     {
         Task<ApiResponse> RegisterStudentAsync(StudentRegisterDto model);
-        Task<ApiResponse> RegisterDoctorAsync(DoctorRegisterDto model);
+        Task<ApiResponse> RegisterDoctorAsync(AdminDoctorRegisterDto model);
+        Task<ApiResponse> RegisterAdminAsync(AdminDoctorRegisterDto model);
         Task<ApiResponse> LoginAsync(LoginDto model);
         Task<ApiResponse> ForgetPasswordAsync(ForgetPasswordDto model);
         Task<ApiResponse> ResetPasswordAsync(ResetPasswordDto model);

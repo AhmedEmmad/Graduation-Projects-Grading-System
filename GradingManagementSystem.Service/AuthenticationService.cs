@@ -145,7 +145,7 @@ namespace GradingManagementSystem.Service
         }
 
         // Finished / Reviewed / Tested / Edited / E
-        public async Task<ApiResponse> RegisterDoctorAsync(DoctorRegisterDto model)
+        public async Task<ApiResponse> RegisterDoctorAsync(AdminDoctorRegisterDto model)
         {
             var existingDoctor = await _userManager.FindByEmailAsync(model.Email);
             if (existingDoctor != null)
@@ -173,6 +173,37 @@ namespace GradingManagementSystem.Service
             await _userManager.AddToRoleAsync(newDoctorAppUser, "Doctor");
             await _unitOfWork.CompleteAsync();
             return new ApiResponse(200, "Doctor registered successfully.", new { IsSuccess = true });
+        }
+
+        // Finished / Reviewed / Tested / Edited / E
+        public async Task<ApiResponse> RegisterAdminAsync(AdminDoctorRegisterDto model)
+        {
+            var existingAdmin = await _userManager.FindByEmailAsync(model.Email);
+            if (existingAdmin != null)
+                return new ApiResponse(400, $"This email: '{model.Email}' is already taken or registered before, Please register with another email", new { IsSuccess = false });
+
+            var newAdminAppUser = new AppUser
+            {
+                FullName = model.FullName,
+                Email = model.Email,
+                UserName = model.Email.Split('@')[0],
+            };
+
+            var createAdminResult = await _userManager.CreateAsync(newAdminAppUser, model.Password);
+            if (!createAdminResult.Succeeded)
+                return new ApiResponse(400, "User creation failed.", new { IsSuccess = false });
+
+            var admin = new Admin
+            {
+                FullName = newAdminAppUser.FullName,
+                Email = newAdminAppUser.Email,
+                AppUserId = newAdminAppUser.Id
+            };
+
+            await _unitOfWork.Repository<Admin>().AddAsync(admin);
+            await _userManager.AddToRoleAsync(newAdminAppUser, "Admin");
+            await _unitOfWork.CompleteAsync();
+            return new ApiResponse(200, "Admin registered successfully.", new { IsSuccess = true });
         }
 
         // Finished / Reviewed / Tested / Edited / E

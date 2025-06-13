@@ -25,7 +25,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _dbContext = dbContext;
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPost("CreateTask")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> DoctorCreateTaskForStudents([FromForm] CreateTaskDto model)
@@ -66,7 +66,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("TeamTasks/{teamId}")]
         [Authorize(Roles = "Doctor, Student")]
         public async Task<IActionResult> GetAllTeamTasks(int teamId)
@@ -82,7 +82,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(result);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("ReviewTask/{taskId}/{studentId}")]
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> ReviewTask(int taskId, int studentId)

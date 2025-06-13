@@ -170,6 +170,7 @@ namespace GradingManagementSystem.Repository
                                                                                         p.AcademicAppointmentId == activeAppointment.Id)
                                                                            .Include(p => p.Leader)
                                                                            .Include(p => p.Team)
+                                                                           .Include(p => p.Team.Supervisor)
                                                                            .OrderByDescending(p => p.SubmissionDate)
                                                                            .ToListAsync();
 
@@ -181,11 +182,11 @@ namespace GradingManagementSystem.Repository
                     SubmissionDate = P.SubmissionDate,
                     Status = P.Status,
                     TeamId = P.TeamId,
-                    TeamName = P.Team.Name,
+                    TeamName = P.Team?.Name,
                     LeaderId = P.LeaderId,
-                    LeaderName = P.Leader.FullName,
-                    SupervisorId = P.Team.SupervisorId,
-                    SupervisorName = P.Team.Supervisor.FullName
+                    LeaderName = P.Leader?.FullName,
+                    SupervisorId = P.Team?.SupervisorId,
+                    SupervisorName = P.Team?.Supervisor?.FullName
                 });
             }
             return null;

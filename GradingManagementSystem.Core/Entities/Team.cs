@@ -21,7 +21,6 @@
         public ICollection<TaskMember> TaskMembers { get; set; } = new HashSet<TaskMember>();
         public ICollection<Schedule> Schedules { get; set; }
         public FinalProjectIdea FinalProjectIdea { get; set; }
-        //public ICollection<Criteria> Criterias { get; set; } = new HashSet<Criteria>();
         public ICollection<Evaluation> Evaluations { get; set; } = new HashSet<Evaluation>();
         public AcademicAppointment AcademicAppointment { get; set; }
         #endregion

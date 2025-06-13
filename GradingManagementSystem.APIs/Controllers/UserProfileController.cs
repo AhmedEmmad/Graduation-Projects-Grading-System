@@ -18,7 +18,7 @@ namespace GradingManagementSystem.APIs.Controllers
             _userProfileService = userProfileService;
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpGet("GetProfile")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> GetProfile()
@@ -42,7 +42,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(profileResponse);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("ChangeUsername")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangeUsername([FromBody] ChangeUsernameDto model)
@@ -71,7 +71,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(responseResult);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("ChangePassword")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto model)
@@ -98,7 +98,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(responseResult);
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / D
         [HttpPut("ChangeProfilePicture")]
         [Authorize(Roles = "Student, Doctor, Admin")]
         public async Task<IActionResult> ChangeProfilePicture([FromForm] ChangeProfilePictureDto model)

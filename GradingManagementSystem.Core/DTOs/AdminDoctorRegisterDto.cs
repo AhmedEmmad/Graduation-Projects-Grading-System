@@ -2,7 +2,7 @@
 
 namespace GradingManagementSystem.Core.DTOs
 {
-    public class DoctorRegisterDto
+    public class AdminDoctorRegisterDto
     {
         [Required(ErrorMessage = "FullName is required.")]
         public string FullName { get; set; }

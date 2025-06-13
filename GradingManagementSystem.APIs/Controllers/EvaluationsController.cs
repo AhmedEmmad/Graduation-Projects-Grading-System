@@ -399,57 +399,73 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Admin teams retrieved successfully.", new { IsSuccess = true, TeamsWithCriteriaBySpecialtyGroup }));
         }
 
-        // Finished / Reviewed / Tested / Edited
-        [HttpGet("TeamEvaluations/{teamId}/{scheduleId}")]
+        // Finished / Reviewed / Tested / Edited / D
+        [HttpPost("SubmitGrades")]
         [Authorize(Roles = "Admin, Doctor")]
-        public async Task<IActionResult> GetTeamEvaluations(int teamId, int scheduleId)
+        public async Task<IActionResult> SubmitGrades([FromBody] SubmitEvaluationDto model)
         {
-            var appUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (appUserId == null || appUserRole == null)
-                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+            if (model is null)
+                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
 
+            var appUserId = User.FindFirst("UserId")?.Value;
+            if (appUserId == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (appUserRole == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized role.", new { IsSuccess = false }));
             if (appUserRole != "Admin" && appUserRole != "Doctor")
                 return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
 
-            int evaluatorId = 0;
+            int? evaluatorId = null;
             string evaluatorRole = string.Empty;
+
+            if (model.DoctorId != null)
+            {
+                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.Id == model.DoctorId);
+                if (doctor == null)
+                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                evaluatorId = doctor.Id;
+                evaluatorRole = "Doctor";
+            }
+            else
+            {
+                if (appUserRole == "Admin")
+                {
+                    var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
+                    if (admin == null)
+                        return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
+                    evaluatorId = admin.Id;
+                    evaluatorRole = "Admin";
+                }
+                else if (appUserRole == "Doctor")
+                {
+                    var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
+                    if (doctor == null)
+                        return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                    evaluatorId = doctor.Id;
+                    evaluatorRole = "Doctor";
+                }
+            }
 
             var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
+                return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
 
-            if (appUserRole == "Admin")
+            if (evaluatorRole == "Doctor")
             {
-                var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
-                if (admin == null)
-                    return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
-                evaluatorId = admin.Id;
-                evaluatorRole = "Admin";
-            }
-            else if (appUserRole == "Doctor")
-            {
-                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
-                if (doctor == null)
-                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
-
                 var schedule = await _dbContext.Schedules
-                                               .Include(s => s.CommitteeDoctorSchedules)
-                                               .Include(s => s.Team)
-                                               .FirstOrDefaultAsync(s => s.Id == scheduleId && s.AcademicAppointmentId == activeAppointment.Id);
-
+                    .Include(s => s.CommitteeDoctorSchedules)
+                    .Include(s => s.Team)
+                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId &&
+                                              s.TeamId == model.TeamId &&
+                                              s.AcademicAppointmentId == activeAppointment.Id);
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
-                var isSupervisor = schedule.TeamId == teamId &&
-                                   doctor.Id == schedule.Team.SupervisorId &&
-                                   schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" &&
-                                                                         cds.DoctorId == doctor.Id &&
-                                                                         cds.ScheduleId == scheduleId);
-                var isExaminer = schedule.TeamId == teamId &&
-                                 schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner" &&
-                                                                       cds.DoctorId == doctor.Id &&
-                                                                       cds.ScheduleId == scheduleId);
+                var isSupervisor = (schedule.TeamId == model.TeamId) &&
+                                   (evaluatorId == schedule.Team.SupervisorId) &&
+                                   (schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == evaluatorId && cds.ScheduleId == schedule.Id));
+                var isExaminer = (schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorId == evaluatorId && cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner"));
 
                 if (isSupervisor)
                     evaluatorRole = "Supervisor";
@@ -457,146 +473,37 @@ namespace GradingManagementSystem.APIs.Controllers
                     evaluatorRole = "Examiner";
                 else
                     return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false }));
-
-                evaluatorId = doctor.Id;
-            }
-
-            var existingEvaluations = new List<Evaluation>();
-            if (evaluatorRole == "Admin")
-            {
-                existingEvaluations = await _dbContext.Evaluations
-                                                    .Include(e => e.Criteria)
-                                                    .Where(e => e.TeamId == teamId &&
-                                                           e.ScheduleId == scheduleId &&
-                                                           e.AdminEvaluatorId == evaluatorId &&
-                                                           e.DoctorEvaluatorId == null &&
-                                                           e.EvaluatorRole == evaluatorRole &&
-                                                           e.AcademicAppointmentId == activeAppointment.Id)
-                                                    .AsNoTracking()
-                                                    .ToListAsync();
-            }
-            else
-            {
-                existingEvaluations = await _dbContext.Evaluations
-                                                    .Include(e => e.Criteria)
-                                                    .Where(e => e.TeamId == teamId &&
-                                                           e.ScheduleId == scheduleId &&
-                                                           e.AdminEvaluatorId == null &&
-                                                           e.DoctorEvaluatorId == evaluatorId &&
-                                                           e.EvaluatorRole == evaluatorRole &&
-                                                           e.AcademicAppointmentId == activeAppointment.Id)
-                                                    .AsNoTracking()
-                                                    .ToListAsync();
-            }
-
-            if (existingEvaluations == null || !existingEvaluations.Any())
-                return NotFound(new ApiResponse(404, "No evaluations found for the specified team and schedule.", new { IsSuccess = false }));
-
-            var evaluations = existingEvaluations.Select(e => new EvaluationObjectDto
-            {
-                EvaluationId = e.Id,
-                ScheduleId = e.ScheduleId,
-                CriteriaId = e.CriteriaId,
-                CriteriaName = e.Criteria.Name,
-                CriteriaDescription = e.Criteria.Description,
-                Grade = e.Grade,
-                EvaluationDate = e.EvaluationDate,
-                EvaluatorRole = e.EvaluatorRole,
-                DoctorEvaluatorId = e.DoctorEvaluatorId,
-                AdminEvaluatorId = e.AdminEvaluatorId,
-                TeamId = e.TeamId,
-                StudentId = e.StudentId
-            }).ToList();
-
-            return Ok(new ApiResponse(200, "Last evaluations retrieved successfully.", new { IsSuccess = true, evaluations }));
-        }
-
-        // Finished / Reviewed / Tested / Edited
-        [HttpPost("SubmitGrades")]
-        [Authorize(Roles = "Admin, Doctor")]
-        public async Task<IActionResult> SubmitGrades([FromBody] SubmitEvaluationDto model)
-        {
-            if (model == null)
-                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
-
-            var appUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (appUserId == null || appUserRole == null)
-                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
-
-            if (appUserRole != "Admin" && appUserRole != "Doctor")
-                return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
-
-            int evaluatorId = 0;
-            string evaluatorRole = string.Empty;
-
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
-
-            if (appUserRole == "Admin")
-            {
-                var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
-                if (admin == null)
-                    return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
-                evaluatorId = admin.Id;
-                evaluatorRole = "Admin";
-            }
-            else if (appUserRole == "Doctor")
-            {
-                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
-                if (doctor == null)
-                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
-
-                var schedule = await _dbContext.Schedules
-                    .Include(s => s.CommitteeDoctorSchedules)
-                    .Include(s => s.Team)
-                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId && s.AcademicAppointmentId == activeAppointment.Id);
-                if (schedule == null)
-                    return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
-
-                var isSupervisor = schedule.TeamId == model.TeamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id);
-                var isExaminer = schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner");
-
-                if (isSupervisor)
-                    evaluatorRole = "Supervisor";
-                else if (isExaminer)
-                    evaluatorRole = "Examiner";
-                else
-                    return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false, ExaminerId = doctor.Id }));
-
-                evaluatorId = doctor.Id;
             }
 
             foreach (var gradeItem in model.Grades)
             {
-                // Check if an evaluation with the same grade already exists
                 var existingEvaluation = await _dbContext.Evaluations
-                    .FirstOrDefaultAsync(e => e.ScheduleId == model.ScheduleId &&
-                                              e.CriteriaId == gradeItem.CriteriaId &&
-                                              e.TeamId == model.TeamId &&
-                                              e.StudentId == model.StudentId &&
-                                              e.EvaluatorRole == evaluatorRole &&
-                                              (e.AdminEvaluatorId == evaluatorId || e.AdminEvaluatorId == null) &&
-                                              (e.DoctorEvaluatorId == evaluatorId || e.DoctorEvaluatorId == null) &&
-                                              e.AcademicAppointmentId == activeAppointment.Id);
+                    .FirstOrDefaultAsync(e =>
+                        e.ScheduleId == model.ScheduleId &&
+                        e.CriteriaId == gradeItem.CriteriaId &&
+                        e.TeamId == model.TeamId &&
+                        ((e.StudentId == model.StudentId) || (e.StudentId == null && model.StudentId == null)) &&
+                        e.EvaluatorRole == evaluatorRole &&
+                        ((evaluatorRole == "Admin" && e.AdminEvaluatorId == evaluatorId) ||
+                         (evaluatorRole != "Admin" && e.DoctorEvaluatorId == evaluatorId)) &&
+                        e.AcademicAppointmentId == activeAppointment.Id);
 
                 if (existingEvaluation != null)
                 {
-                    // Check if the grade has been modified
                     if (existingEvaluation.Grade != gradeItem.Grade)
                     {
                         existingEvaluation.Grade = gradeItem.Grade;
+                        existingEvaluation.LastUpdatedAt = DateTime.Now.AddHours(1);
                         _dbContext.Evaluations.Update(existingEvaluation);
                     }
                 }
                 else
                 {
-                    // Proceed to add the new evaluation
                     var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId &&
-                                                                                       c.AcademicAppointmentId == activeAppointment.Id);
+                                                                                       c.AcademicAppointmentId == activeAppointment.Id &&
+                                                                                       c.Evaluator == evaluatorRole);
                     if (criteria == null)
-                        return NotFound(new ApiResponse(404, $"Criteria not found.", new { IsSuccess = false }));
+                        return NotFound(new ApiResponse(404, "Criteria not found.", new { IsSuccess = false }));
 
                     if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
                         return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
@@ -605,8 +512,8 @@ namespace GradingManagementSystem.APIs.Controllers
                     {
                         ScheduleId = model.ScheduleId,
                         CriteriaId = gradeItem.CriteriaId,
-                        DoctorEvaluatorId = appUserRole == "Doctor" ? evaluatorId : null,
-                        AdminEvaluatorId = appUserRole == "Admin" ? evaluatorId : null,
+                        DoctorEvaluatorId = (evaluatorRole == "Admin") ? null : evaluatorId,
+                        AdminEvaluatorId = (evaluatorRole == "Admin") ? evaluatorId : null,
                         EvaluatorRole = evaluatorRole,
                         StudentId = model.StudentId,
                         TeamId = model.TeamId,
@@ -620,11 +527,13 @@ namespace GradingManagementSystem.APIs.Controllers
 
             await _dbContext.SaveChangesAsync();
 
-            // Update HasCompletedEvaluation to true (1) for the examiner or supervisor
-            if (appUserRole == "Doctor")
+            // Mark evaluation as completed for doctor (if doctor or admin evaluating as doctor)
+            if (evaluatorRole == "Supervisor" || evaluatorRole == "Examiner")
             {
                 var committeeDoctorSchedule = await _dbContext.CommitteeDoctorSchedules
-                    .FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId);
+                    .FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId &&
+                                                cds.DoctorId == evaluatorId &&
+                                                cds.DoctorRole == evaluatorRole);
 
                 if (committeeDoctorSchedule != null)
                 {
@@ -634,39 +543,23 @@ namespace GradingManagementSystem.APIs.Controllers
                 }
             }
 
-            // Check if all examiners and supervisor for the schedule have completed their evaluation
             if (model.ScheduleId.HasValue && model.TeamId.HasValue)
             {
-                var schedule = await _dbContext.Schedules
-                    .Include(s => s.CommitteeDoctorSchedules)
-                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId && s.AcademicAppointmentId == activeAppointment.Id);
+                var schedule = await _dbContext.Schedules.Include(s => s.CommitteeDoctorSchedules)
+                                                         .FirstOrDefaultAsync(s => s.Id == model.ScheduleId &&
+                                                                                   s.AcademicAppointmentId == activeAppointment.Id &&
+                                                                                   s.TeamId == model.TeamId);
 
                 if (schedule != null)
                 {
-                    // Get all examiners and supervisor for this schedule
-                    var examinerIds = schedule.CommitteeDoctorSchedules
-                        .Where(cds => cds.DoctorRole == "Examiner")
-                        .Select(cds => cds.DoctorId)
-                        .ToList();
+                    var allExaminersCompleted = await _dbContext.CommitteeDoctorSchedules
+                        .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner")
+                        .AllAsync(cds => cds.HasCompletedEvaluation);
 
-                    var supervisorId = schedule.CommitteeDoctorSchedules
-                        .Where(cds => cds.DoctorRole == "Supervisor")
-                        .Select(cds => cds.DoctorId)
-                        .FirstOrDefault();
+                    var supervisorCompleted = await _dbContext.CommitteeDoctorSchedules
+                        .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Supervisor")
+                        .AllAsync(cds => cds.HasCompletedEvaluation);
 
-                    // Check if all examiners have completed evaluation
-                    var allExaminersCompleted = !examinerIds.Any() ||
-                        await _dbContext.CommitteeDoctorSchedules
-                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner")
-                            .AllAsync(cds => cds.HasCompletedEvaluation);
-
-                    // Check if supervisor has completed evaluation
-                    var supervisorCompleted = supervisorId == 0 ||
-                        await _dbContext.CommitteeDoctorSchedules
-                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Supervisor")
-                            .AllAsync(cds => cds.HasCompletedEvaluation);
-
-                    // If all examiners and supervisor have completed, set IsGraded = true
                     if (allExaminersCompleted && supervisorCompleted)
                     {
                         schedule.IsGraded = true;
@@ -798,7 +691,7 @@ namespace GradingManagementSystem.APIs.Controllers
             return Ok(new ApiResponse(200, "Student grades retrieved successfully.", new { IsSuccess = true, Grades = combinedEvaluations, totalGrade }));
         }
 
-        // Finished / Reviewed / Tested / Edited
+        // Finished / Reviewed / Tested / Edited / I
         [HttpGet("ExportGradesForSpecialty/{specialty}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> ExportGradesForSpecialty(string specialty)
@@ -1035,14 +928,13 @@ namespace GradingManagementSystem.APIs.Controllers
         {
             if (doctorId <= 0)
                 return BadRequest(new ApiResponse(400, "Invalid doctor ID.", new { IsSuccess = false }));
+
             var appUserId = User.FindFirst("UserId")?.Value;
             if (appUserId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
             var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
             if (appUserRole == null || appUserRole != "Admin")
                 return Unauthorized(new ApiResponse(401, "Unauthorized role for this action.", new { IsSuccess = false }));
-            if (appUserRole != "Admin")
-                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
 
             var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
             if (admin == null)
@@ -1052,12 +944,12 @@ namespace GradingManagementSystem.APIs.Controllers
             if (doctor == null)
                 return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
 
-            var activeAppointment = await _dbContext.AcademicAppointments
-                .FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
+            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
                 return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
 
-            var pendingDoctorSchedules = await _dbContext.CommitteeDoctorSchedules
+            // Get all schedules for this doctor (as supervisor or examiner) in the active appointment
+            var doctorSchedules = await _dbContext.CommitteeDoctorSchedules
                 .Include(cds => cds.Schedule)
                     .ThenInclude(s => s.Team)
                         .ThenInclude(t => t.Students)
@@ -1065,18 +957,18 @@ namespace GradingManagementSystem.APIs.Controllers
                 .Include(cds => cds.Schedule)
                     .ThenInclude(s => s.Team)
                         .ThenInclude(t => t.FinalProjectIdea)
-                .Include(t => t.Schedule.Team.Supervisor)
+                .Include(cds => cds.Schedule.Team.Supervisor)
                 .Where(cds => cds.DoctorId == doctorId &&
                               cds.Schedule.AcademicAppointmentId == activeAppointment.Id &&
                               cds.Schedule.IsGraded == false)
                 .AsNoTracking()
                 .ToListAsync();
 
-            if (pendingDoctorSchedules == null || !pendingDoctorSchedules.Any())
+            if (doctorSchedules == null || !doctorSchedules.Any())
                 return NotFound(new ApiResponse(404, "No teams found without evaluation for this doctor.", new { IsSuccess = false }));
 
-            var schedules = pendingDoctorSchedules
-                .Select(cds => cds.Schedule)
+            // Get all teams from these schedules
+            var schedules = doctorSchedules.Select(cds => cds.Schedule)
                 .Where(s => s.TeamId != null && s.AcademicAppointmentId == activeAppointment.Id)
                 .ToList();
 
@@ -1095,32 +987,24 @@ namespace GradingManagementSystem.APIs.Controllers
 
             foreach (var specialty in teamSpecialties)
             {
-                var doctorSchedules = pendingDoctorSchedules
+                var specialtyDoctorSchedules = doctorSchedules
                     .Where(cds => cds.Schedule.Team.Specialty == specialty)
                     .ToList();
 
-                var isExaminer = doctorSchedules.Any(cds => cds.DoctorRole == "Examiner");
-                var isSupervisor = doctorSchedules.Any(cds => cds.DoctorRole == "Supervisor");
+                var isExaminer = specialtyDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner");
+                var isSupervisor = specialtyDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor");
 
                 var criteriasForExaminer = activeCriterias
                     .Where(c => c.Specialty == specialty && c.Evaluator == "Examiner" && c.IsActive)
-                    .Select(c => new CriteriaDto
-                    {
-                        Id = c.Id,
-                        Name = c.Name,
-                        Description = c.Description,
-                        MaxGrade = c.MaxGrade,
-                        Evaluator = c.Evaluator,
-                        GivenTo = c.GivenTo,
-                        Specialty = c.Specialty,
-                        Year = c.Year,
-                        Term = c.Term,
-                        CreatedAt = c.CreatedAt,
-                    }).ToList();
+                    .ToList();
 
                 var criteriasForSupervisor = activeCriterias
                     .Where(c => c.Specialty == specialty && c.Evaluator == "Supervisor" && c.IsActive)
-                    .Select(c => new CriteriaDto
+                    .ToList();
+
+                var criterias = new List<CriteriaDto>();
+                if (isExaminer)
+                    criterias.AddRange(criteriasForExaminer.Select(c => new CriteriaDto
                     {
                         Id = c.Id,
                         Name = c.Name,
@@ -1132,19 +1016,28 @@ namespace GradingManagementSystem.APIs.Controllers
                         Year = c.Year,
                         Term = c.Term,
                         CreatedAt = c.CreatedAt,
-                    }).ToList();
-
-                var criterias = new List<CriteriaDto>();
-                if (isExaminer)
-                    criterias.AddRange(criteriasForExaminer);
+                    }));
                 if (isSupervisor)
-                    criterias.AddRange(criteriasForSupervisor);
+                    criterias.AddRange(criteriasForSupervisor.Select(c => new CriteriaDto
+                    {
+                        Id = c.Id,
+                        Name = c.Name,
+                        Description = c.Description,
+                        MaxGrade = c.MaxGrade,
+                        Evaluator = c.Evaluator,
+                        GivenTo = c.GivenTo,
+                        Specialty = c.Specialty,
+                        Year = c.Year,
+                        Term = c.Term,
+                        CreatedAt = c.CreatedAt,
+                    }));
 
                 var teamsWithoutEvaluation = new List<TeamWithCriteriaDto>();
 
                 foreach (var t in teams.Where(t => t.Specialty == specialty))
                 {
                     var schedule = schedules.FirstOrDefault(s => s.Team.Id == t.Id);
+
                     var teamMemberDtos = t.Students != null
                         ? t.Students
                             .Where(s => s.AppUser != null)
@@ -1159,8 +1052,11 @@ namespace GradingManagementSystem.APIs.Controllers
                             }).ToList()
                         : new List<TeamMemberDto>();
 
+                    var requiredCriterias = criterias.Where(c => (c.Evaluator == "Examiner" && isExaminer) ||
+                                                                (c.Evaluator == "Supervisor" && isSupervisor)).ToList();
+
                     bool allCriteriasEvaluated = true;
-                    foreach (var criteria in criterias)
+                    foreach (var criteria in requiredCriterias)
                     {
                         if (criteria.GivenTo == "Student")
                         {
@@ -1213,66 +1109,94 @@ namespace GradingManagementSystem.APIs.Controllers
                             SupervisorId = t.SupervisorId,
                             SupervisorName = t.Supervisor?.FullName,
                             Specialty = t.Specialty,
-                            Criterias = new List<CriteriaDto>(),
+                            Criterias = criterias.Where(c =>
+                                        (c.Evaluator == "Examiner" && isExaminer) ||
+                                        (c.Evaluator == "Supervisor" && isSupervisor)).ToList(),
                             TeamMembers = teamMemberDtos
                         });
                     }
                 }
-
-                teamsWithCriteriaBySpecialtyGroup.Add(new TeamsWithCriteriaBySpecialtyGroupDto
+                if (teamsWithoutEvaluation.Any())
                 {
-                    Specialty = specialty,
-                    Criterias = criterias,
-                    Teams = teamsWithoutEvaluation
-                });
+                    teamsWithCriteriaBySpecialtyGroup.Add(new TeamsWithCriteriaBySpecialtyGroupDto
+                    {
+                        Specialty = specialty,
+                        Criterias = criterias,
+                        Teams = teamsWithoutEvaluation
+                    });
+                }
             }
+            if (!teamsWithCriteriaBySpecialtyGroup.Any())
+                return NotFound(new ApiResponse(404, "All teams for this doctor have been fully evaluated.", new { IsSuccess = false }));
 
             return Ok(new ApiResponse(200, "Teams without evaluation for this doctor retrieved successfully.", new { IsSuccess = true, teamsWithCriteriaBySpecialtyGroup }));
         }
 
         // Finished / Reviewed / Tested / Edited / D
-        [HttpGet("TeamEvaluationsForEvaluatingAdmin/{teamId}/{scheduleId}/{doctorId}")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetTeamEvaluationsForEvaluatingAdmin(int teamId, int scheduleId, int doctorId)
+        [HttpGet("TeamEvaluations")]
+        [Authorize(Roles = "Admin, Doctor")]
+        public async Task<IActionResult> GetTeamEvaluations([FromBody] ExistingTeamEvaluationsDto model)
         {
             var appUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (appUserId == null || appUserRole == null)
+            if (appUserId == null)
                 return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
+            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (appUserRole == null)
+                return Unauthorized(new ApiResponse(401, "Unauthorized role.", new { IsSuccess = false }));
 
-            if (appUserRole != "Admin")
+            if (appUserRole != "Admin" && appUserRole != "Doctor")
                 return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
 
-            int evaluatorId = 0;
-            string evaluatorRole = "Doctor";
+            int? evaluatorId = null;
+            string evaluatorRole = string.Empty;
+
+            if (model.DoctorId != null)
+            {
+                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.Id == model.DoctorId);
+                if (doctor == null)
+                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                evaluatorId = doctor.Id;
+                evaluatorRole = "Doctor";
+            }
+            else
+            {
+                if (appUserRole == "Admin")
+                {
+                    var admin = await _dbContext.Admins.FirstOrDefaultAsync(a => a.AppUserId == appUserId);
+                    if (admin == null)
+                        return NotFound(new ApiResponse(404, "Admin not found.", new { IsSuccess = false }));
+                    evaluatorId = admin.Id;
+                    evaluatorRole = "Admin";
+                }
+                else if (appUserRole == "Doctor")
+                {
+                    var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.AppUserId == appUserId);
+                    if (doctor == null)
+                        return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
+                    evaluatorId = doctor.Id;
+                    evaluatorRole = "Doctor";
+                }
+            }
 
             var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
             if (activeAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found.", new { IsSuccess = false }));
+                return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
 
             if (evaluatorRole == "Doctor")
             {
-                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.Id == doctorId);
-                if (doctor == null)
-                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
-
                 var schedule = await _dbContext.Schedules
-                                               .Include(s => s.CommitteeDoctorSchedules)
-                                               .Include(s => s.Team)
-                                               .FirstOrDefaultAsync(s => s.Id == scheduleId && s.AcademicAppointmentId == activeAppointment.Id && s.TeamId == teamId);
-
+                    .Include(s => s.CommitteeDoctorSchedules)
+                    .Include(s => s.Team)
+                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId &&
+                                              s.TeamId == model.TeamId &&
+                                              s.AcademicAppointmentId == activeAppointment.Id);
                 if (schedule == null)
                     return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
 
-                var isSupervisor = schedule.TeamId == teamId &&
-                                   doctor.Id == schedule.Team.SupervisorId &&
-                                   schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" &&
-                                                                         cds.DoctorId == doctor.Id &&
-                                                                         cds.ScheduleId == scheduleId);
-                var isExaminer = schedule.TeamId == teamId &&
-                                 schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Examiner" &&
-                                                                       cds.DoctorId == doctor.Id &&
-                                                                       cds.ScheduleId == scheduleId);
+                var isSupervisor = (schedule.TeamId == model.TeamId) &&
+                                   (evaluatorId == schedule.Team.SupervisorId) &&
+                                   (schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == evaluatorId && cds.ScheduleId == schedule.Id));
+                var isExaminer = (schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorId == evaluatorId && cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner"));
 
                 if (isSupervisor)
                     evaluatorRole = "Supervisor";
@@ -1280,20 +1204,35 @@ namespace GradingManagementSystem.APIs.Controllers
                     evaluatorRole = "Examiner";
                 else
                     return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false }));
-
-                evaluatorId = doctor.Id;
             }
 
-            var existingEvaluations = await _dbContext.Evaluations
+            var existingEvaluations = new List<Evaluation>();
+            if (evaluatorRole == "Admin")
+            {
+                existingEvaluations = await _dbContext.Evaluations
                                                     .Include(e => e.Criteria)
-                                                    .Where(e => e.TeamId == teamId &&
-                                                           e.ScheduleId == scheduleId &&
+                                                    .Where(e => e.TeamId == model.TeamId &&
+                                                           e.ScheduleId == model.ScheduleId &&
+                                                           e.AdminEvaluatorId == evaluatorId &&
+                                                           e.DoctorEvaluatorId == null &&
+                                                           e.EvaluatorRole == evaluatorRole &&
+                                                           e.AcademicAppointmentId == activeAppointment.Id)
+                                                    .AsNoTracking()
+                                                    .ToListAsync();
+            }
+            else
+            {
+                existingEvaluations = await _dbContext.Evaluations
+                                                    .Include(e => e.Criteria)
+                                                    .Where(e => e.TeamId == model.TeamId &&
+                                                           e.ScheduleId == model.TeamId &&
                                                            e.AdminEvaluatorId == null &&
                                                            e.DoctorEvaluatorId == evaluatorId &&
                                                            e.EvaluatorRole == evaluatorRole &&
                                                            e.AcademicAppointmentId == activeAppointment.Id)
                                                     .AsNoTracking()
                                                     .ToListAsync();
+            }
 
             if (existingEvaluations == null || !existingEvaluations.Any())
                 return NotFound(new ApiResponse(404, "No evaluations found for the specified team and schedule.", new { IsSuccess = false }));
@@ -1315,162 +1254,6 @@ namespace GradingManagementSystem.APIs.Controllers
             }).ToList();
 
             return Ok(new ApiResponse(200, "Last evaluations retrieved successfully.", new { IsSuccess = true, evaluations }));
-        }
-
-        // Finished / Reviewed / Tested / Edited
-        [HttpPost("SubmitGradesFromAdminForEvaluatingDoctor")]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> SubmiSubmitGradesFromAdminForEvaluatingDoctortGrades([FromBody] SubmitEvaluationIIDto model)
-        {
-            if (model == null)
-                return BadRequest(new ApiResponse(400, "Invalid input data.", new { IsSuccess = false }));
-
-            var appUserId = User.FindFirst("UserId")?.Value;
-            var appUserRole = User.FindFirst(ClaimTypes.Role)?.Value;
-            if (appUserId == null || appUserRole == null)
-                return Unauthorized(new ApiResponse(401, "Unauthorized access.", new { IsSuccess = false }));
-
-            if (appUserRole != "Admin")
-                return Unauthorized(new ApiResponse(401, "Unauthorized role for evaluation.", new { IsSuccess = false }));
-
-            int evaluatorId = 0;
-            string evaluatorRole = "Doctor";
-
-            var activeAppointment = await _dbContext.AcademicAppointments.FirstOrDefaultAsync(a => a.Status == StatusType.Active.ToString());
-            if (activeAppointment == null)
-                return NotFound(new ApiResponse(404, "No active academic appointment found, You cannot evaluate now.", new { IsSuccess = false }));
-
-            if (evaluatorRole == "Doctor")
-            {
-                var doctor = await _dbContext.Doctors.FirstOrDefaultAsync(d => d.Id == model.DoctorId);
-                if (doctor == null)
-                    return NotFound(new ApiResponse(404, "Doctor not found.", new { IsSuccess = false }));
-
-                var schedule = await _dbContext.Schedules
-                        .Include(s => s.CommitteeDoctorSchedules)
-                        .Include(s => s.Team)
-                        .FirstOrDefaultAsync(s => s.Id == model.ScheduleId && s.AcademicAppointmentId == activeAppointment.Id && s.TeamId == model.TeamId);
-                if (schedule == null)
-                    return NotFound(new ApiResponse(404, "Schedule not found.", new { IsSuccess = false }));
-
-                var isSupervisor = schedule.TeamId == model.TeamId && doctor.Id == schedule.Team.SupervisorId && schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorRole == "Supervisor" && cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id);
-                var isExaminer = schedule.CommitteeDoctorSchedules.Any(cds => cds.DoctorId == doctor.Id && cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner");
-
-                if (isSupervisor)
-                    evaluatorRole = "Supervisor";
-                else if (isExaminer)
-                    evaluatorRole = "Examiner";
-                else
-                    return NotFound(new ApiResponse(404, "Doctor not authorized for this evaluation.", new { IsSuccess = false, ExaminerId = doctor.Id }));
-
-                evaluatorId = doctor.Id;
-            }
-
-            foreach (var gradeItem in model.Grades)
-            {
-                // Check if an evaluation with the same grade already exists
-                var existingEvaluation = await _dbContext.Evaluations
-                    .FirstOrDefaultAsync(e => e.ScheduleId == model.ScheduleId &&
-                                              e.CriteriaId == gradeItem.CriteriaId &&
-                                              e.TeamId == model.TeamId &&
-                                              e.StudentId == model.StudentId &&
-                                              e.EvaluatorRole == evaluatorRole &&
-                                              (e.AdminEvaluatorId == evaluatorId || e.AdminEvaluatorId == null) &&
-                                              (e.DoctorEvaluatorId == evaluatorId || e.DoctorEvaluatorId == null) &&
-                                              e.AcademicAppointmentId == activeAppointment.Id);
-
-                if (existingEvaluation != null)
-                {
-                    // Check if the grade has been modified
-                    if (existingEvaluation.Grade != gradeItem.Grade)
-                    {
-                        existingEvaluation.Grade = gradeItem.Grade;
-                        _dbContext.Evaluations.Update(existingEvaluation);
-                    }
-                }
-                else
-                {
-                    // Proceed to add the new evaluation
-                    var criteria = await _dbContext.Criterias.FirstOrDefaultAsync(c => c.Id == gradeItem.CriteriaId &&
-                                                                                       c.AcademicAppointmentId == activeAppointment.Id);
-                    if (criteria == null)
-                        return NotFound(new ApiResponse(404, $"Criteria not found.", new { IsSuccess = false }));
-
-                    if (gradeItem.Grade < 0 || gradeItem.Grade > criteria.MaxGrade)
-                        return BadRequest(new ApiResponse(400, $"Grade '{gradeItem.Grade}' is out of range.", new { IsSuccess = false }));
-
-                    var newEvaluation = new Evaluation
-                    {
-                        ScheduleId = model.ScheduleId,
-                        CriteriaId = gradeItem.CriteriaId,
-                        DoctorEvaluatorId = evaluatorId,
-                        AdminEvaluatorId = null,
-                        EvaluatorRole = evaluatorRole,
-                        StudentId = model.StudentId,
-                        TeamId = model.TeamId,
-                        Grade = gradeItem.Grade,
-                        AcademicAppointmentId = activeAppointment.Id,
-                    };
-
-                    await _dbContext.Evaluations.AddAsync(newEvaluation);
-                }
-            }
-
-            await _dbContext.SaveChangesAsync();
-
-                var committeeDoctorSchedule = await _dbContext.CommitteeDoctorSchedules
-                    .FirstOrDefaultAsync(cds => cds.ScheduleId == model.ScheduleId && cds.DoctorId == evaluatorId);
-
-                if (committeeDoctorSchedule != null)
-                {
-                    committeeDoctorSchedule.HasCompletedEvaluation = true;
-                    _dbContext.CommitteeDoctorSchedules.Update(committeeDoctorSchedule);
-                    await _dbContext.SaveChangesAsync();
-                }
-
-            // Check if all examiners and supervisor for the schedule have completed their evaluation
-            if (model.ScheduleId.HasValue && model.TeamId.HasValue)
-            {
-                var schedule = await _dbContext.Schedules
-                    .Include(s => s.CommitteeDoctorSchedules)
-                    .FirstOrDefaultAsync(s => s.Id == model.ScheduleId && s.AcademicAppointmentId == activeAppointment.Id);
-
-                if (schedule != null)
-                {
-                    // Get all examiners and supervisor for this schedule
-                    var examinerIds = schedule.CommitteeDoctorSchedules
-                        .Where(cds => cds.DoctorRole == "Examiner")
-                        .Select(cds => cds.DoctorId)
-                        .ToList();
-
-                    var supervisorId = schedule.CommitteeDoctorSchedules
-                        .Where(cds => cds.DoctorRole == "Supervisor")
-                        .Select(cds => cds.DoctorId)
-                        .FirstOrDefault();
-
-                    // Check if all examiners have completed evaluation
-                    var allExaminersCompleted = !examinerIds.Any() ||
-                        await _dbContext.CommitteeDoctorSchedules
-                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Examiner")
-                            .AllAsync(cds => cds.HasCompletedEvaluation);
-
-                    // Check if supervisor has completed evaluation
-                    var supervisorCompleted = supervisorId == 0 ||
-                        await _dbContext.CommitteeDoctorSchedules
-                            .Where(cds => cds.ScheduleId == schedule.Id && cds.DoctorRole == "Supervisor")
-                            .AllAsync(cds => cds.HasCompletedEvaluation);
-
-                    // If all examiners and supervisor have completed, set IsGraded = true
-                    if (allExaminersCompleted && supervisorCompleted)
-                    {
-                        schedule.IsGraded = true;
-                        _dbContext.Schedules.Update(schedule);
-                        await _dbContext.SaveChangesAsync();
-                    }
-                }
-            }
-
-            return Ok(new ApiResponse(200, "Grades submitted successfully.", new { IsSuccess = true }));
         }
     }
 }

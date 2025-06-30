@@ -2,7 +2,6 @@
 using GradingManagementSystem.Core.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.ComponentModel.DataAnnotations;
 using IAuthenticationService = GradingManagementSystem.Core.Services.Contact.IAuthenticationService;
 
 namespace GradingManagementSystem.APIs.Controllers

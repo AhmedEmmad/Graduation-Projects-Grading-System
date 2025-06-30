@@ -1,14 +1,15 @@
-﻿using GradingManagementSystem.Core.Entities.Identity;
+﻿using GradingManagementSystem.Core.Entities.Identity; 
 using GradingManagementSystem.Core.Services.Contact;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Identity; // This Class Is Core Identity User For User Management
+using Microsoft.Extensions.Configuration; // This Class Is Used To Read Configuration Settings
+using Microsoft.IdentityModel.Tokens; // This Class Is Used To Create/generate JWT Tokens For Authentication And Authorization
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
+using System.Security.Claims; // For defining user claims in the token.
 using System.Text;
 
 namespace GradingManagementSystem.Service
 {
+    // This Class Is Used To Create/generate JWT Tokens For Authentication And Authorization
     public class TokenService : ITokenService
     {
         private readonly IConfiguration _configuration;

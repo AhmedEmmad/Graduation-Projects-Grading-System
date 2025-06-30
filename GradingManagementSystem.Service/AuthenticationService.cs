@@ -6,7 +6,6 @@ using GradingManagementSystem.Core.Entities.Identity;
 using GradingManagementSystem.Core.Services.Contact;
 using GradingManagementSystem.Repository.Data.DbContexts;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
